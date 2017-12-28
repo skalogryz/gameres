@@ -31,6 +31,7 @@ var
   b : ShortInt;
   y : integer;
   i : integer;
+  m : integer;
 begin
   si:=0;
   di:=0;
@@ -40,7 +41,8 @@ begin
     inc(si);
     if b<0 then inc(di, -b)
     else if b=0 then begin
-      inc(di, width - (di mod width));
+      m:=(di mod width);
+      if m>0 then inc(di, width - m);
       inc(y);
     end else begin
       for i:=1 to b do begin
