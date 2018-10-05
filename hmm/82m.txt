@@ -1,0 +1,20 @@
+-------------------------------------------------------------------------------------------------------------------
+ORIGIN: http://smajnr.net/2015/09/extracting-music-from-heroes-of-might-and-magic-1-82m-files.html
+
+=Extracting Music from Heroes of Might and Magic 1 (82M Files)=
+
+I have Might and Magic 1 from the Might and Magic Humble Bundle. 
+After installation there’s a homm1.gog file which is actually and ISO containing the original music in 82M format.
+
+With info from [http://rewiki.regengedanken.de/wiki/.82M_(Heroes_of_Might_and_Magic) the Reverse Engineering Wiki page on the 82M file extension] 
+I’ve come up with  the following command to convert these music files using ffmpeg:
+ 
+ for %f in (*.82M) do 
+  ffmpeg -f s8 -ar 22050 -ac 1 -i %f -acodec 
+ pcm_u8 -ar 22050 -ac 1 %~nf.wav
+ 
+This will convert each 82M file to the appropriate WAV format. If you have 82M files 
+from Heroes of Might and Magic 2, you should be able to change the option s8 to u8.
+-------------------------------------------------------------------------------------------------------------------
+
+Based one the article above, seems like .82M files are simple 8-bit (stereo?) waveforms.
