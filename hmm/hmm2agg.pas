@@ -74,9 +74,13 @@ var
   i : integer;
 begin
   writeln('count ', agg.count);
-  writeln('size':10,'offset':10,' name');
+  writeln('size':10,'offset':10,'fileid':10,' name');
   for i := 0 to agg.count-1 do begin
-    writeln(agg.info[i].offset:10,agg.info[i].size:10,' ', GetName(agg.name[i]));
+    writeln(
+      agg.info[i].size:10
+      ,agg.info[i].offset:10
+      ,IntToHex(agg.info[i].fileid,8):10
+      ,' ', GetName(agg.name[i]));
   end;
 end;
 
