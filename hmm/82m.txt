@@ -17,4 +17,38 @@ This will convert each 82M file to the appropriate WAV format. If you have 82M f
 from Heroes of Might and Magic 2, you should be able to change the option s8 to u8.
 -------------------------------------------------------------------------------------------------------------------
 
-Based one the article above, seems like .82M files are simple 8-bit (stereo?) waveforms.
+http://rewiki.regengedanken.de, can be extracted from web Archive:
+ORIGIN: https://web.archive.org/web/20160817031158/http://rewiki.regengedanken.de/wiki/.82M_(Heroes_of_Might_and_Magic)
+
+==Games==
+.82M files are used in Heroes of Might and Magic and Heroes of Might and Magic II. These files are raw audio files with the following settings:
+
+Sample Size    : 8-bits 
+Sample Encoding: HoMM1 – signed (2's complement), HoMM2 – unsigned
+Channels       : 1
+Sample Rate    : 22050
+
+==File Size==
+Varies with length of audio
+
+==Notes==
+Can be open and converted with audio software that can handle RAW audio files. Can also be converted to a standard wave file with the code from here
+
+----------------------------------------------------------------------------------------------------------------------
+for .wav file:
+==Structure==
+struct __attribute__((packed)){
+   unsigned int riff;		// "RIFF"
+   unsigned int size;		// size_d + 0x22
+   unsigned int wave;		// "WAVE"
+   unsigned int fmt;		// "FMT"
+   unsigned int size_t;		// 0x10
+   unsigned short int format;	// 0x01 pcm
+   unsigned short int channels;	// 0x01 mono
+   unsigned int samples;	// 22050
+   unsigned int byteper;	// 22050 = channels * samples * bitsper / 8
+   unsigned short int align;	// 1     = channels * bitsper / 8
+   unsigned short int bitsper;	// 8
+   unsigned int data;		// "DATA"
+   unsigned int size_d;		//
+} wavetable;
