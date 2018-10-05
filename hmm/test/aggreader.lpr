@@ -14,7 +14,7 @@ var
 begin
   agg := THHM2AggFile.Create;
   try
-    if not HMM2ReadFile(src, agg) then
+    if not AGG2ReadFile(src, agg) then
       writeln('reading file failed');
     Dump(agg);
   finally
@@ -55,7 +55,7 @@ begin
   if not Assigned(extr) then Exit;
   agg := THHM2AggFile.Create;
   try
-    if not HMM2ReadFile(src, agg) then begin
+    if not AGG2ReadFile(src, agg) then begin
       writeln('reading file failed');
       Exit;
     end;

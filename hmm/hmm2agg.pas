@@ -35,8 +35,6 @@ type
     data   : array of byte;
   end;
 
-type
-
   { THHM2AggFile }
 
   THHM2AggFile = class(TObject)
@@ -46,8 +44,8 @@ type
     name  : array of THMM2FileName;
   end;
 
-procedure HMM2ReadStream(asrc: TStream; dst: THHM2AggFile);
-function HMM2ReadFile(const fn: string; dst: THHM2AggFile): Boolean;
+procedure AGG2ReadStream(asrc: TStream; dst: THHM2AggFile);
+function AGG2ReadFile(const fn: string; dst: THHM2AggFile): Boolean;
 function GetName(nm: THMM2FileName): string;
 
 procedure ICNReadStream(asrc: TStream; dst: TICNSpriteFile);
@@ -108,7 +106,7 @@ implementation
 
 { TAggFile }
 
-procedure HMM2ReadStream(asrc: TStream; dst: THHM2AggFile);
+procedure AGG2ReadStream(asrc: TStream; dst: THHM2AggFile);
 begin
   dst.count := asrc.ReadWord;
   SetLength(dst.info, dst.count);
@@ -119,14 +117,14 @@ begin
   asrc.Read(dst.name[0], dst.count * sizeof(THMM2FileName));
 end;
 
-function HMM2ReadFile(const fn: string; dst: THHM2AggFile): Boolean;
+function AGG2ReadFile(const fn: string; dst: THHM2AggFile): Boolean;
 var
   fs : TFileStream;
 begin
   try
     fs := TFileStream.Create(fn, fmOpenRead or fmShareDenyNone);
     try
-      HMM2ReadStream(fs, dst);
+      AGG2ReadStream(fs, dst);
     finally
       fs.Free;
     end;
