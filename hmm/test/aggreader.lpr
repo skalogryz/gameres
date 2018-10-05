@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, hmm2agg;
+  Classes, SysUtils, hmm2agg, hmm2utils;
 
 procedure ListFiles(const src: string);
 var
@@ -16,7 +16,7 @@ begin
   try
     if not AGG2ReadFile(src, agg) then
       writeln('reading file failed');
-    Dump(agg);
+    AggDump(agg);
   finally
     agg.Free;
   end;

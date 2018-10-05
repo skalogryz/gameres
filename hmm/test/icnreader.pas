@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, hmm2agg;
+  Classes, SysUtils, hmm2agg, hmm2utils;
 
 procedure ReadICNFile(const fn: string);
 var
@@ -25,6 +25,27 @@ begin
       writeln('crash: ', e.message);
   end;
 end;
+
+procedure ICNtoBMP(const IcnFile: string);
+var
+  icn : TICNSpriteFile;
+  bmpfn : string;
+begin
+  try
+    icn := TICNSpriteFile.Create;
+    try
+      ICNReadFile(IcnFile, icn);
+      bmpfn := ChangeFileExt(IcnFile,'.bmp');
+
+    finally
+      icn.Free;
+    end;
+  except
+    on e:exception do
+      writeln('crash: ', e.message);
+  end;
+end;
+
 
 var
   gCmd     : string = '';
@@ -72,7 +93,14 @@ begin
     Exit;
   end;
   try
-    ReadICNFile(gIcnFile);
+    if gCmdLow = 'bmp' then begin
+      if (gIcnFile = '') then begin
+        writeln('please specify ICN file');
+        Exit;
+      end;
+      ICNtoBMP(gIcnFile);
+    end else
+      ReadICNFile(gIcnFile);
   finally
     gSubject.Free;
   end;

@@ -4,10 +4,10 @@ unit hmm2agg;
 
 interface
 
-// Based on the description from https://thaddeus002.github.io/fheroes2-WoT/infos/informations.html
-
 uses
   Classes, SysUtils;
+
+// Based on the description from https://thaddeus002.github.io/fheroes2-WoT/infos/informations.html
 
 type
   THMM2FileInfo = packed record
@@ -50,10 +50,6 @@ function GetName(nm: THMM2FileName): string;
 
 procedure ICNReadStream(asrc: TStream; dst: TICNSpriteFile);
 function ICNReadFile(const fn: string; dst: TICNSpriteFile): Boolean;
-
-procedure Dump(agg: THHM2AggFile);
-procedure ICNDump(icn: TICNSpriteFile; DumpContent: boolean = false);
-
 
 type
   { TIcnPixels }
@@ -100,7 +96,8 @@ const
   ICN_MONO_SKIPMIN     = $81; // number of pixels to skip + 0x80. The (n - 128) pixels are transparents.
   ICN_MONO_SKIPMAX     = $FF;
 
-procedure ICNPixelDump(dst: TIcnPixels);
+type
+  TPalColor = packed record r,g,b: byte; end;
 
 implementation
 
@@ -130,21 +127,6 @@ begin
     end;
   except
     Result := false;
-  end;
-end;
-
-procedure Dump(agg: THHM2AggFile);
-var
-  i : integer;
-begin
-  writeln('count ', agg.count);
-  writeln('size':10,'offset':10,'fileid':10,' name');
-  for i := 0 to agg.count-1 do begin
-    writeln(
-      agg.info[i].size:10
-      ,agg.info[i].offset:10
-      ,IntToHex(agg.info[i].fileid,8):10
-      ,' ', GetName(agg.name[i]));
   end;
 end;
 
@@ -190,28 +172,6 @@ begin
     end;
   except
     Result := false;
-  end;
-end;
-
-procedure ICNDump(icn: TICNSpriteFile; DumpContent: boolean);
-var
-  i  : integer;
-  px : TIcnPixels;
-begin
-  writeln('count: ', icn.count);
-  writeln('size:  ', icn.size);
-  for i:=0 to icn.count-1 do begin
-    writeln(i,' ',icn.header[i].tp,' ofs=',icn.header[i].X,'x',icn.header[i].Y,'; size=',icn.header[i].W,'x',icn.header[i].H,'; dataofs=',icn.header[i].ofs);
-    if DumpContent then begin
-      px := TICNPixels.Create(icn.header[i].W, icn.header[i].H, icn.header[i].tp = ICN_TYPE_MONO);
-      try
-        ICNDataToPixData(icn.data, icn.header[i].ofs - icn.count * sizeof(TICNSpriteHeader), px);
-        ICNPixelDump(px);
-        writeln;
-      finally
-        px.Free;
-      end;
-    end;
   end;
 end;
 
@@ -344,30 +304,6 @@ begin
     FillWord(lines[i][0], width, ICN_PIXEL_EMPTY);
   end;
 
-end;
-
-procedure ICNPixelDump(dst: TIcnPixels);
-var
-  y,x: integer;
-begin
-  if dst.isMono then begin
-    for y:=0 to dst.Height-1 do begin
-      for x:=0 to dst.Width-1 do begin
-        if dst.Lines[y][x]=0 then write('##')
-        else write('..');
-      end;
-      writeln;
-    end;
-  end else begin
-    for y:=0 to dst.Height-1 do begin
-      for x:=0 to dst.Width-1 do begin
-        if dst.Lines[y][x] = ICN_PIXEL_EMPTY then write('..')
-        else if dst.Lines[y][x] = ICN_PIXEL_SHADOW then write('\\')
-        else write(IntToHex(dst.Lines[y][x],2));
-      end;
-      writeln;
-    end;
-  end;
 end;
 
 end.
