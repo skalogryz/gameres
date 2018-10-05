@@ -97,7 +97,10 @@ const
   ICN_MONO_SKIPMAX     = $FF;
 
 type
-  TPalColor = packed record r,g,b: byte; end;
+  THMMPalColor = packed record
+    r,g,b: byte;
+  end;
+  THMMPalette = array [0..255] of THMMPalColor;
 
 implementation
 
@@ -186,6 +189,7 @@ begin
   x := 0;
   y := 0;
   while ((y < dst.height) and (i < length(data))) and (data[i]<>ICN_NORM_END)  do begin
+    // range check error on: SMALLBAR.ICN
     //write('ofs=',i);
     //writeln(';data=',IntToHex(data[i],2));
     case data[i] of
