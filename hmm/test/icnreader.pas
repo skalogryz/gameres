@@ -6,7 +6,8 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  Classes, SysUtils, hmm2agg, hmm2utils;
+  Classes, SysUtils, Math, hmm2agg, hmm2utils
+  ,fpimage, fpwritebmp;
 
 procedure ReadICNFile(const fn: string);
 var
@@ -26,16 +27,78 @@ begin
   end;
 end;
 
+procedure ICNToFPImage(px: TICNPixels; const pal: THMMPalette; dst: TFPCustomImage; dstxofs, dstyofs: integer);
+var
+  x,y : integer;
+  fp  : TFPColor;
+  pl  : THMMPalColor;
+begin
+  for y:=0 to px.Height-1 do
+    for x:=0 to px.Width-1 do begin
+      case px.Lines[y][x] of
+        ICN_PIXEL_EMPTY: fp := FPColor(0,0,0,0);
+        ICN_PIXEL_SHADOW: fp := FPColor(0,0,0,$8000);
+      else
+        pl := pal[ byte(px.Lines[y][x]) ];
+        fp := FPColor(pl.r * 255, pl.g * 255, pl.b * 255, $FFFF)
+      end;
+      dst.Colors[x+dstxofs, y+dstyofs]:=fp;
+    end;
+end;
+
 procedure ICNtoBMP(const IcnFile: string);
 var
-  icn : TICNSpriteFile;
+  icn   : TICNSpriteFile;
   bmpfn : string;
+  img   : TFPMemoryImage;
+  w,h   : integer;
+  i     : integer;
+  x,y   : Integer;
+  px    : TICNPixels;
+  bmpw  : TFPWriterBMP;
+  fs    : TFileStream;
 begin
   try
     icn := TICNSpriteFile.Create;
     try
       ICNReadFile(IcnFile, icn);
+
+      w:=icn.header[0].W;
+      h:=icn.header[0].H;
+      for i := 1 to icn.count-1 do begin
+        inc(h, icn.header[i].h);
+        w := Max(w, icn.header[i].w);
+      end;
       bmpfn := ChangeFileExt(IcnFile,'.bmp');
+
+      x:=0;
+      y:=0;
+      img := TFPMemoryImage.create(w, h);
+      try
+        img.UsePalette := false;
+        for i := 0 to icn.count-1 do begin
+          px := TICNPixels.Create(icn.header[i].W, icn.header[i].H, icn.header[i].tp = ICN_TYPE_MONO) ;
+          try
+            ICNDataToPixData(icn.data, icn.header[i].ofs - icn.count * sizeof(TICNSpriteHeader), px);
+            ICNToFPImage(px, DefaultPal, img, x, y);
+          finally
+            px.Free;
+          end;
+          inc(y, icn.header[i].H);
+        end;
+
+        fs := TFileStream.Create(bmpfn, fmCreate);
+        bmpw  := TFPWriterBMP.Create;
+        try
+          bmpw.BitsPerPixel:=32;
+          bmpw.ImageWrite(fs, img);
+        finally
+          bmpw.Free;
+          fs.Free;
+        end;
+      finally
+        img.Free;
+      end;
 
     finally
       icn.Free;
