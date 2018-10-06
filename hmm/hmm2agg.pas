@@ -86,8 +86,10 @@ const
                               // modulo 4 is not null, n equals the next byte modulo 4,
                               // otherwise n equals the second next byte.
 
-  ICN_NORM_REPEATMIN   = $C1; // next byte is the number of next pixels of same color. The second next byte is the color of these pixels.
-  ICN_NORM_REPEATMAX   = $FF; // number of pixels of same color plus 0xC0. Next byte is the color of these pixels.
+  ICN_NORM_REPEAT      = $C1; // next byte is the number of next pixels of same color. The second next byte is the color of these pixels.
+
+  ICN_NORM_REPEATMIN   = $C2; // number of pixels of same color plus 0xC0. Next byte is the color of these pixels.
+  ICN_NORM_REPEATMAX   = $FF;
 
   ICN_MONO_EOL         = $00; // end of line reached, go to the first pixel of next line.
   ICN_MONO_PIXELMIN    = $01; // number of black pixels
@@ -189,9 +191,6 @@ begin
   x := 0;
   y := 0;
   while ((y < dst.height) and (i < length(data))) and (data[i]<>ICN_NORM_END)  do begin
-    // range check error on: SMALLBAR.ICN
-    //write('ofs=',i);
-    //writeln(';data=',IntToHex(data[i],2));
     case data[i] of
       ICN_NORM_EOL: begin
         inc(y);
@@ -233,8 +232,13 @@ begin
         end;
       end;
 
-      ICN_NORM_REPEATMIN..ICN_NORM_REPEATMAX: begin
-        cnt := data[i] - ICN_NORM_REPEATMIN+1;
+      ICN_NORM_REPEAT, ICN_NORM_REPEATMIN..ICN_NORM_REPEATMAX: begin
+        if data[i]=ICN_NORM_REPEAT then begin
+          inc(i);
+          cnt := data[i];
+        end
+        else
+          cnt := data[i] - ICN_NORM_REPEAT+1;
         inc(i);
         if i>=length(data) then break;
         for j:=0 to cnt - 1 do begin
