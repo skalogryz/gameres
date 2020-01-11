@@ -5,6 +5,10 @@ unit rncutils;
 // https://icculus.org/libsyndicate/
 //
 // used by Bullfrog and Traveller's Tales
+//
+// Todo: Method 2
+// Todo: compression?
+// Todo: encryption?
 
 {$mode delphi}
 
