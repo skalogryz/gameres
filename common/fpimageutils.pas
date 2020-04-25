@@ -5,14 +5,7 @@ unit fpimageutils;
 interface
 
 uses
-  Classes, SysUtils, FPimage, FPWriteBMP;
-
-type
-  TVGAPalColor = packed record
-    r,g,b : Byte;
-  end;
-  TVGAPal = array [0..255] of TVGAPalColor;
-  PVGAPal = ^TVGAPal;
+  Classes, SysUtils, FPimage, FPWriteBMP, palutils;
 
 function PalBytesToFpImage(const buf: array of byte;
   width, height: integer;

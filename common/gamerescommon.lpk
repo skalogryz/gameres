@@ -24,6 +24,10 @@
         <Filename Value="fpimageutils.pas"/>
         <UnitName Value="fpimageutils"/>
       </Item>
+      <Item>
+        <Filename Value="palutils.pas"/>
+        <UnitName Value="palutils"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>

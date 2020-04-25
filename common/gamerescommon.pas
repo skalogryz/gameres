@@ -8,7 +8,7 @@ unit gamerescommon;
 interface
 
 uses
-  huffmantree, rncutils, fpimageutils, LazarusPackageIntf;
+  huffmantree, rncutils, fpimageutils, palutils, LazarusPackageIntf;
 
 implementation
 
