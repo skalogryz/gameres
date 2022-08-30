@@ -17,6 +17,12 @@ uses
   Classes, SysUtils;
 
 type
+  TMapHeader = packed record
+    idx    : shortint;
+    size   : integer;
+    offset : integer;
+  end;
+
   TSTFHeader = packed record
     id      : word;
     res1    : longword;
@@ -29,31 +35,40 @@ type
   end;
 
   TSTFMapEntry = packed record
+  case byte of
+  0:(
     tp     : byte;     // type of the file (can be read in the file header)
     id     : longword; // id of the file (can be read in the file header)
-    w2     : byte;     // unknown
-    res1   : byte;     // unknown
+    w2     : byte;     // (always 1)
+    res1   : byte;     // (always 0)
     offset : longword; // offset in .stf file
     res2   : array [0..$6f-1-11] of byte;
+    );
+   1:(buf : array [0..$6f-1] of byte;)
   end;
+
+  { TSTFMap }
 
   TSTFMap = class(TObject)
     ent : array of TSTFMapEntry;
     cnt : integer;
+    procedure Sort;
   end;
 
-  TFileHeader = packed record
-    id      : Longword;  // id of the file
+  // This header preceeds every entry of the .STF file
+  TInSTFFileHeader = packed record
+    id      : Longword;  // id of the file (matches the id in .MAP file)
     fl      : Word;      // ?
     size1   : LongWord;  // size1
-    size2   : LongWord;  // size2 (some times it's 0)
-    tp      : Word;      // type of the file
+    size2   : LongWord;  // size2 (some times it's 0) packsize?
+    tp      : Word;      // type of the file (matches the type in .MAP file)
     w2      : Word;      //
     extrasz : Word;      // extra bytes following the header! and prior the main data.
                          // should be read together with the data.
                          // used for images files only.
     w3, w4  : Word;      //
-    w5, w6  : Word;      //
+    w5  : Word;
+    w6  : Word;      // always $FEFE
   end;
 
 const
@@ -95,6 +110,73 @@ procedure ReadStream(asrc: TStream; dst: TSTFFile);
 procedure ReadMAPStream(asrc: TStream; dst: TSTFMap);
 function ReadFile(const fn: string; dst: TSTFFile; map: TSTFMap): Boolean;
 
+(*
+  This comes with RES_CFG.hpp file (that comes with the game)
+
+    /// resources   // tp   ext     flags
+    RES_CEL,        // 0    cel     .
+    RES_ANIM,       // 1    ani     .
+    RES_PIC,        // 2    pic     .
+    RES_MIDI,       // 3    hmp     . H M
+    RES_DAC,        // 4    wav     . H M
+    RES_PAL,        // 5    pal     .
+    RES_DATA,       // 6    dat     . S
+    RES_FONT,       // 7    fon     . L
+    RES_SQUIB,      // 8    sqb     .
+    RES_CONV,       // 9    cnv     .
+    RES_DCEL,       // 10   dcl     . S L
+    RES_CHOREO,     // 11   cgf     .
+    RES_BNK,        // 12   bnk     . H L M G
+    RES_SYNCH,      // 13   syn     . H
+    RES_CHUNK,      // 14   chu     .
+    RES_ROUTE,      // 15   rot     .
+    RES_SAVE,       // 16   sav     . H
+    RES_FLIC,       // 17   flc     . H
+    RES_TILELIB,    // 18   tlb     .
+    RES_MAP_INFO,   // 19   mif     .
+    RES_STUFF,      // 20   stf     .;stfs;D:\stfs
+    RES_8TRACK,     // 21   8tr     .		     H
+    RES_SMACKER,    // 22   smk     .;stfs;D:\stfs   H
+    RES_SMK_SCRIPT, // 23   scr     .;stfs;D:\stfs   H
+    RES_LAST        // 24
+
+Format:
+
+   DEFINE                  // number extension path [flag [...]]
+
+The above defines are used in the TIGRE source code.  If the defines
+themselves are changed, tigre.exe must be rebuilt.  If the attribute info
+in the comment is changed, tigre.exe need not be rebuilt.
+
+
+The attribute information must contain the file extension and path, and may
+also contain:
+
+  (G) - use a system grip, not a standard grip (will not get flushed on restore)
+  (H) - headerless flag (this resource will not have a res header)
+  (L) - a locked flag
+  (M) - non-moveable flag
+  (S) - saveable flag (these will be saved and restored)
+
+RES_MIDI, RES_DAC, and RES_DATA use these optional flags.
+
+*)
+
+type
+  TTextEntries = packed record
+    offset  : integer;
+    textIdx : integer;
+  end;
+
+  TTextMap = record
+    count   : Integer;
+    entries : array of TTextEntries;
+    buf     : string;
+    texts   : array of PChar;
+  end;
+
+procedure ReadTextMap(const s: TStream; var mp: TTextMap);
+
 implementation
 
 procedure ReadStream(asrc: TStream; dst: TSTFFile);
@@ -121,6 +203,7 @@ begin
   dst.cnt:=asrc.size div sizeof(TSTFMapEntry);
   SetLength(dst.ent, dst.cnt);
   asrc.Read(dst.ent[0], dst.cnt*sizeof(TSTFMapEntry));
+  dst.Sort;
 end;
 
 function ReadFile(const fn: string; dst: TSTFFile; map: TSTFMap): Boolean;
@@ -130,7 +213,6 @@ begin
   try
     fs := TFileStream.Create(fn, fmOpenRead or fmShareDenyNone);
     try
-      writeln('r');
       ReadStream(fs, dst);
     finally
       fs.Free;
@@ -146,6 +228,82 @@ begin
   end;
 end;
 
+{ TSTFMap }
+
+type
+
+  { TSortMapEntry }
+
+  TSortMapEntry = class(TObject)
+    owner : TSTFMap;
+    idx   : Integer;
+    ofs   : Integer;
+    constructor Create(aidx: integer; aofs: Integer);
+  end;
+
+{ TSortMapEntry }
+
+constructor TSortMapEntry.Create(aidx: integer; aofs: Integer);
+begin
+  idx := aidx;
+  ofs := aofs;
+end;
+
+function CompareSortEntry(p1,p2: Pointer): Integer;
+var
+  s1: TSortMapEntry;
+  s2: TSortMapEntry;
+begin
+  s1:=TSortMapEntry(p1);
+  s2:=TSortMapEntry(p2);
+  if s1.ofs = s2.ofs then Result :=0
+  else if s1.ofs < s2.ofs then Result:=-1
+  else Result :=1;
+end;
+
+procedure TSTFMap.Sort;
+var
+  l : TList;
+  i : integer;
+  res : array of TSTFMapEntry;
+  s   : TSortMapEntry;
+begin
+  l := TList.Create;
+  try
+    for i:=0 to cnt-1 do
+      l.Add( TSortMapEntry.Create(i, ent[i].offset));
+    l.Sort(@CompareSortEntry);
+    SetLength(res, l.Count);
+    for i:=0 to l.Count-1 do begin
+      s := TSortMapEntry(l[i]);
+      res[i] := ent[s.idx];
+    end;
+    for i:=0 to l.Count-1 do
+      TObject(l[i]).Free;
+
+    ent := res;
+  finally
+    l.Free;
+  end;
+end;
+
+procedure ReadTextMap(const s: TStream; var mp: TTextMap);
+var
+  i : integer;
+begin
+  mp.count := Integer(s.ReadDWord);
+  if mp.Count<=0 then begin
+    SetLEngth(mp.entries, 0);
+    Exit;
+  end;
+  SetLength(mp.entries, mp.Count);
+  s.Read(mp.entries[0], mp.Count * sizeof(TTextEntries));
+  SetLength(mp.buf, s.Size - s.Position);
+  s.Read(mp.buf[1], length(mp.buf));
+  SetLength(mp.texts, mp.Count);
+  for i := 0 to mp.Count-1 do
+    mp.texts[i] := @mp.buf[mp.entries[i].offset+1];
+end;
 
 end.
 
