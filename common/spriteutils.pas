@@ -55,8 +55,8 @@ type
     procedure Clear;
   end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte): TFPCustomImage;
-function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; const dstFn: string): Boolean;
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
+function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; const dstFn: string): Boolean;
 
 implementation
 
@@ -171,7 +171,7 @@ begin
   fsprites.Clear;
 end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte): TFPCustomImage;
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
 var
   sz : TSize;
   sp : TSpriteAlignPos;
@@ -184,15 +184,16 @@ begin
     if sp.tagOffset<0 then continue;
     PalBytesToFpImage(imgBuf, sp.tagOffset,
       sp.width, sp.height,
-      palBuf, Result, sp.targetX, sp.targetY);
+      palBuf, palTransIdx,
+      Result, sp.targetX, sp.targetY);
   end;
 end;
 
-function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; const dstFn: string): Boolean;
+function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; const dstFn: string): Boolean;
 var
   fp : TFPCustomImage;
 begin
-  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf);
+  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf, palTransIdx);
   Result := Assigned(fp);
   if not Result then Exit;
   try

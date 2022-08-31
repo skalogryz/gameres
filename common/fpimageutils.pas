@@ -15,7 +15,7 @@ function PalBytesToFpImage(const buf: array of byte;
 
 function PalBytesToFpImage(const buf: array of byte; bufOfs: Integer;
   width, height: integer;
-  const palbuf: array of byte;
+  const palbuf: array of byte; palTranspIdx: integer;
   dst: TFPCustomImage; dstX, dstY: Integer): Boolean; overload;
 
 function PalBytesToFpImage(const buf: array of byte;
@@ -46,18 +46,19 @@ function PalBytesToFpImage(const buf: array of byte;
   const palbuf: array of byte;
   dst: TFPCustomImage): Boolean;
 begin
-  Result := PalBytesToFpImage(buf, 0, width, height, palbuf, dst, 0,0);
+  Result := PalBytesToFpImage(buf, 0, width, height, palbuf, 0, dst, 0,0);
 end;
 
 function PalBytesToFpImage(const buf: array of byte; bufOfs: Integer;
   width, height: integer;
-  const palbuf: array of byte;
+  const palbuf: array of byte; palTranspIdx: Integer;
   dst: TFPCustomImage; dstX, dstY: Integer): Boolean; overload;
 var
   x,y : integer;
   pal : PVGAPal;
   clr : TFPColor;
   i   : integer;
+  pid : byte;
 begin
   Result :=
     Assigned(dst)
@@ -70,7 +71,12 @@ begin
   i:=bufOfs;
   for y:=0 to height-1 do
     for x:=0 to width-1 do begin
-      VGAColorToFPColor( pal^[buf[i]], clr);
+      pid := buf[i];
+      VGAColorToFPColor( pal^[pid], clr);
+      if (palTranspIdx>=0) then begin
+        if pid = palTranspIdx then clr.Alpha := 0
+        else clr.Alpha := $FFFF;
+      end else clr.Alpha := $FFFF;
       dst.Colors[dstX+x,dstY+y]:=clr;
       inc(i);
     end;
@@ -114,6 +120,7 @@ begin
   try
     w := TFPWriterBMP.Create;
     try
+      w.BitsPerPixel:=32;
       w.ImageWrite(st, fp);
       Result:=true;
     finally
