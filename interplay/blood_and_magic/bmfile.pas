@@ -87,14 +87,17 @@ const
   TYPE_UNITLIB   = 19; // unit library file
 
 type
-  TImageHeader = packed record
-    ofsx : integer;
-    ofsy : integer;
-    width  : word;
-    height : word;
-    flags  : word;
-    time   : longword;
+  // The array of the FRameInfo is provided with the "extra header" of every picture file
+  // Even if the picture contains only 1 frame (i.e. a splash screen)
+  TFrameInfo = packed record
+    ofsx   : integer;
+    ofsy   : integer; // 8
+    width  : word;  // 10
+    height : word;  // 12
+    flags  : word;  // 14
+    time   : longword; // 18
   end;
+  TImageHeader = TFrameInfo;
 
 
 //  MAP.IDX
@@ -176,6 +179,10 @@ type
   end;
 
 procedure ReadTextMap(const s: TStream; var mp: TTextMap);
+
+const
+  // the index of the transparent color
+  TRANSP_COLOR = $FE;
 
 implementation
 
