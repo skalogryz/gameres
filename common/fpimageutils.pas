@@ -12,12 +12,16 @@ function PalBytesToFpImage(const buf: array of byte;
   const palbuf: array of byte;
   dst: TFPCustomImage): Boolean; overload;
 
+function PalBytesToFpImage(const buf: array of byte; bufOfs: Integer;
+  width, height: integer;
+  const palbuf: array of byte;
+  dst: TFPCustomImage; dstX, dstY: Integer): Boolean; overload;
+
 function PalBytesToFpImage(const buf: array of byte;
   width, height: integer;
   const pal: array of byte): TFPCustomImage; overload;
 
 procedure VGAColorToFPColor(const vga: TVGAPalColor; out clr: TFPColor); inline;
-
 
 // bmp related utils
 function PalBytesToBmpFile(const buf: array of byte;
@@ -32,15 +36,23 @@ implementation
 
 procedure VGAColorToFPColor(const vga: TVGAPalColor; out clr: TFPColor); inline;
 begin
-  clr.red:=vga.r shl 16;
-  clr.green:=vga.g shl 16;
-  clr.blue:=vga.b shl 16;
+  clr.red:=vga.r shl 8;
+  clr.green:=vga.g shl 8;
+  clr.blue:=vga.b shl 8;
 end;
 
 function PalBytesToFpImage(const buf: array of byte;
   width, height: integer;
   const palbuf: array of byte;
   dst: TFPCustomImage): Boolean;
+begin
+  Result := PalBytesToFpImage(buf, 0, width, height, palbuf, dst, 0,0);
+end;
+
+function PalBytesToFpImage(const buf: array of byte; bufOfs: Integer;
+  width, height: integer;
+  const palbuf: array of byte;
+  dst: TFPCustomImage; dstX, dstY: Integer): Boolean; overload;
 var
   x,y : integer;
   pal : PVGAPal;
@@ -55,15 +67,16 @@ begin
 
   pal:=@palbuf[0];
 
-  i:=0;
+  i:=bufOfs;
   for x:=0 to width-1 do
     for y:=0 to height-1 do begin
       VGAColorToFPColor( pal^[buf[i]], clr);
-      dst.Colors[x,y]:=clr;
+      dst.Colors[dstX+x,dstY+y]:=clr;
       inc(i);
     end;
   Result:=true;
 end;
+
 
 function PalBytesToFpImage(const buf: array of byte;
   width, height: integer;

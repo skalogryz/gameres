@@ -8,7 +8,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)\"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
     <Files>
@@ -27,6 +27,10 @@
       <Item>
         <Filename Value="palutils.pas"/>
         <UnitName Value="palutils"/>
+      </Item>
+      <Item>
+        <Filename Value="spriteutils.pas"/>
+        <UnitName Value="spriteutils"/>
       </Item>
     </Files>
     <RequiredPkgs>
