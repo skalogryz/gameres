@@ -7,6 +7,7 @@ interface
 uses
   Classes, SysUtils, FPimage, FPWriteBMP, palutils;
 
+// buf goes horizontal scan-lines horizontal
 function PalBytesToFpImage(const buf: array of byte;
   width, height: integer;
   const palbuf: array of byte;
@@ -23,7 +24,6 @@ function PalBytesToFpImage(const buf: array of byte;
 
 procedure VGAColorToFPColor(const vga: TVGAPalColor; out clr: TFPColor); inline;
 
-// bmp related utils
 function PalBytesToBmpFile(const buf: array of byte;
   width, height: integer;
   const palbuf: array of byte;
@@ -68,8 +68,8 @@ begin
   pal:=@palbuf[0];
 
   i:=bufOfs;
-  for x:=0 to width-1 do
-    for y:=0 to height-1 do begin
+  for y:=0 to height-1 do
+    for x:=0 to width-1 do begin
       VGAColorToFPColor( pal^[buf[i]], clr);
       dst.Colors[dstX+x,dstY+y]:=clr;
       inc(i);
