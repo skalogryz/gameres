@@ -183,6 +183,34 @@ procedure ReadTextMap(const s: TStream; var mp: TTextMap);
 const
   // the index of the transparent color
   TRANSP_COLOR = $FE;
+  PLAYER_COLOR_MIN = $C0;
+  PLAYER_COLOR_MAX = $C7;
+
+type
+  TFontInfo = packed record
+    flag1   : Word;
+    Height  : Word;
+    flag2   : Word;
+    flag3   : Word;
+    flag4   : Word;
+    minChar : Word;
+    maxChar : Word;
+    flag5   : Word;
+  end;
+
+
+  TFontChar = packed record
+    Width  : Word;
+    Offset : Integer;
+  end;
+
+  TFontExtraInfo = record
+    info      : TFontInfo;
+    chars     : array of TFontChar;
+    charCount : integer;
+  end;
+
+procedure ReadFontExtaInfo(const s: TStream; var mp: TFontExtraInfo);
 
 implementation
 
@@ -310,6 +338,14 @@ begin
   SetLength(mp.texts, mp.Count);
   for i := 0 to mp.Count-1 do
     mp.texts[i] := @mp.buf[mp.entries[i].offset+1];
+end;
+
+procedure ReadFontExtaInfo(const s: TStream; var mp: TFontExtraInfo);
+begin
+  s.Read(mp.info, sizeof(mp.info));
+  mp.charCount := (mp.info.maxChar-mp.info.minChar)+1;
+  SetLength(mp.chars, mp.charCount);
+  s.Read(mp.chars[0], length(mp.chars)*sizeof(TFontChar));
 end;
 
 end.
