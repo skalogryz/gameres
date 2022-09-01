@@ -53,10 +53,14 @@ type
     property Count: integer read GetCount;
     property Sprite[i: integer]: TSpriteAlignPos read GetSprite; default;
     procedure Clear;
+    function GetMaxSize: TSize;
   end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
-function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; const dstFn: string): Boolean;
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; autoAlign: Boolean = true): TFPCustomImage;
+function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte;
+  palTransIdx: Integer; const dstFn: string; autoAlign: Boolean = true): Boolean;
+
+procedure AlignInSquareByMaxSpr(sa: TSpriteAlign; maxSprWidth, maxSprHeight: Integer);
 
 implementation
 
@@ -171,13 +175,34 @@ begin
   fsprites.Clear;
 end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
+function TSpriteAlign.GetMaxSize: TSize;
+var
+  i   : integer;
+  x,y : integer;
+  s   : TSpriteAlignPos;
+begin
+  Result.cx:=0;
+  Result.cy:=0;
+  for i := 0 to Count-1 do begin
+    s := sprite[i];
+    x := s.targetX + s.width;
+    y := s.targetY + s.height;
+    if x > Result.cx then Result.cx := x;
+    if y > Result.cy then Result.cy := y;
+  end;
+end;
+
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; autoAlign: Boolean ): TFPCustomImage;
 var
   sz : TSize;
   sp : TSpriteAlignPos;
   i  : integer;
 begin
-  sa.AlignSprites(sz);
+  if autoAlign then
+    sa.AlignSprites(sz)
+  else
+    sz := sa.GetMaxSize;
+
   Result := TFPMemoryImage.Create(sz.Width, sz.Height);
   for i:=0 to sa.Count-1 do begin
     sp := sa.Sprite[i];
@@ -189,11 +214,12 @@ begin
   end;
 end;
 
-function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; const dstFn: string): Boolean;
+function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte;
+  palTransIdx: Integer; const dstFn: string; autoAlign: Boolean): Boolean;
 var
   fp : TFPCustomImage;
 begin
-  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf, palTransIdx);
+  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf, palTransIdx, autoAlign);
   Result := Assigned(fp);
   if not Result then Exit;
   try
@@ -201,6 +227,10 @@ begin
   finally
     fp.Free;
   end;
+end;
+
+procedure AlignInSquareByMaxSpr(sa: TSpriteAlign; maxSprWidth, maxSprHeight: Integer);
+begin
 end;
 
 end.
