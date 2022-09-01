@@ -66,7 +66,7 @@ var
   d   : TFileStream;
   sz  : integer;
   hdr : TInSTFFileHeader;
-
+  sfx : string;
 begin
   s:=TSTFFile.Create;
   m:=TSTFMap.Create;
@@ -84,10 +84,10 @@ begin
         sz := m.ent[i+1].offset-fs.Position
       else
         sz := fs.Size - fs.Position;
-      writeln('sz=',sz);
 
       dec(sz, sizeof(TInSTFFileHeader));
-      d := TFileStream.Create('file_'+IntToStr(i)+'_'+IntToStr(m.ent[i].tp)+'.hdr', fmCreate);
+      sfx :='_'+IntToStr(i)+'_'+IntToHex(m.ent[i].id,8)+'_'+IntToStr(m.ent[i].tp);
+      d := TFileStream.Create('file'+sfx+'.hdr', fmCreate);
       try
         fs.Read(hdr, sizeof(hdr));
         d.Write(hdr, sizeof(hdr));
@@ -97,7 +97,7 @@ begin
 
       if (hdr.extrasz>0) then begin
         dec(sz, hdr.extrasz);
-        d := TFileStream.Create('file_'+IntToStr(i)+'_'+IntToStr(m.ent[i].tp)+'.ext', fmCreate);
+        d := TFileStream.Create('file'+sfx+'.ext', fmCreate);
         try
           d.CopyFrom(fs, hdr.extrasz);
         finally
@@ -106,7 +106,7 @@ begin
       end;
 
 
-      d := TFileStream.Create('file_'+IntToStr(i)+'_'+IntToStr(m.ent[i].tp)+GetExtByType(m.ent[i].tp), fmCreate);
+      d := TFileStream.Create('file'+sfx+GetExtByType(m.ent[i].tp), fmCreate);
       try
         d.CopyFrom(fs, sz);
       finally
