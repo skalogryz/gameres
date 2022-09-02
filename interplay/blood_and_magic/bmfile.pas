@@ -187,6 +187,9 @@ const
   PLAYER_COLOR_MAX = $C7;
 
 type
+  // Fonts extra data starts with this header record.
+  // The header is followed by the maxChar-minChar+1 count of TFontChar
+  // describing every character
   TFontInfo = packed record
     flag1   : Word;
     Height  : Word;
@@ -198,12 +201,13 @@ type
     flag5   : Word;
   end;
 
-
+  // The descriptor for a single character
   TFontChar = packed record
-    Width  : Word;
-    Offset : Integer;
+    Width  : Word;    // The number of colmuns in the character
+    Offset : Integer; // where the pixel starts
   end;
 
+  // This is a high-level structure to read from "extra" header
   TFontExtraInfo = record
     info      : TFontInfo;
     chars     : array of TFontChar;
