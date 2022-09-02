@@ -216,6 +216,27 @@ type
 
 procedure ReadFontExtaInfo(const s: TStream; var mp: TFontExtraInfo);
 
+
+type
+  TTileHeader = packed record
+    zeros : Integer;
+    count1 : Integer;
+    count2 : Integer;
+    buf    : array [0..16*4-1] of byte;
+  end;
+
+  TTileInfo = record
+    name  : array [0..19] of char;
+    flag1 : integer;
+    flag2 : integer;
+    flag3 : integer;
+    flag4 : integer;
+    flag5 : integer;
+    flag6 : integer;
+    flag7 : integer;
+    iconId : integer; // id of the icon file name
+  end;
+
 implementation
 
 procedure ReadStream(asrc: TStream; dst: TSTFFile);
