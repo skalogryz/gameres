@@ -49,18 +49,23 @@ type
       tagIndex : integer = 0;
       tag: TObject = nil
       ): TSpriteAlignPos;
-    function AlignSprites(out sz: TSize): Boolean;
     property Count: integer read GetCount;
     property Sprite[i: integer]: TSpriteAlignPos read GetSprite; default;
     procedure Clear;
     function GetMaxSize: TSize;
+    function GetMaxSpriteSize: TSize;
+    function AllPlaced: Boolean;
+    function AllOffseted: Boolean;
+    procedure Sort;
   end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; autoAlign: Boolean = true): TFPCustomImage;
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
 function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte;
-  palTransIdx: Integer; const dstFn: string; autoAlign: Boolean = true): Boolean;
+  palTransIdx: Integer; const dstFn: string): Boolean;
 
+procedure AlignVertically(sa: TSpriteAlign);
 procedure AlignInSquareByMaxSpr(sa: TSpriteAlign; maxSprWidth, maxSprHeight: Integer);
+procedure AlignInEqColumns(sa: TSpriteAlign; colNum: integer);
 
 implementation
 
@@ -90,6 +95,8 @@ begin
   inherited Create;
   fSeq:=ASeq;
   tagOffset := -1;
+  targetX := -1;
+  targetY := -1;
 end;
 
 destructor TSpriteAlignPos.Destroy;
@@ -144,26 +151,20 @@ begin
   Result := AddSprite(width, height, tagIndex, tag, ofs);
 end;
 
-function TSpriteAlign.AlignSprites(out sz: TSize): Boolean;
+procedure AlignVertically(sa: TSpriteAlign);
 var
   i  : integer;
   sp : TSpriteAlignPos;
   x,y: integer;
 begin
-  sz.cx:=0;
-  sz.cy:=0;
-  fsprites.Sort(@SortByIndexSeq);
   x:=0;
   y:=0;
-  for i := 0 to fsprites.Count-1 do begin
-    sp := TSpriteAlignPos(fsprites[i]);
+  for i := 0 to sa.Count-1 do begin
+    sp := sa[i];
     sp.targetX := x;
     sp.targetY := y;
-    sz.cx := Max(sz.cx, sp.Width);
     inc(y, sp.Height);
   end;
-  sz.cy := y;
-  Result := true;
 end;
 
 procedure TSpriteAlign.Clear;
@@ -192,17 +193,67 @@ begin
   end;
 end;
 
-function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer; autoAlign: Boolean ): TFPCustomImage;
+function TSpriteAlign.GetMaxSpriteSize: TSize;
+var
+  i  : integer;
+  sp : TSpriteAlignPos;
+begin
+  Result := size(0,0);
+  for i:=0 to count-1 do begin
+    sp := sprite[i];
+    Result.cx := Max(Result.cx, sp.width);
+    Result.cy := Max(Result.cy, sp.height);
+  end;
+end;
+
+function TSpriteAlign.AllPlaced: Boolean;
+var
+  i  : integer;
+  sp : TSpriteAlignPos;
+begin
+  for i:=0 to Count-1 do begin
+    sp := sprite[i];
+    if (sp.targetX < 0) or (sp.targetY < 0) then begin
+      Result := false;
+      Exit;
+    end;
+  end;
+  Result := true;
+end;
+
+function TSpriteAlign.AllOffseted: Boolean;
+var
+  i  : integer;
+  sp : TSpriteAlignPos;
+begin
+  for i:=0 to Count-1 do begin
+    sp := sprite[i];
+    if (sp.tagOffset < 0) then begin
+      Result := false;
+      Exit;
+    end;
+  end;
+  Result := true;
+end;
+
+procedure TSpriteAlign.Sort;
+begin
+  fsprites.Sort(@SortByIndexSeq);
+end;
+
+function SpritesAlignToFPImage(sa: TSpriteAlign; const imgBuf, palBuf: array of byte; palTransIdx: Integer): TFPCustomImage;
 var
   sz : TSize;
   sp : TSpriteAlignPos;
   i  : integer;
 begin
-  if autoAlign then
-    sa.AlignSprites(sz)
-  else
-    sz := sa.GetMaxSize;
+  if not sa.AllPlaced then begin
+    sa.Sort;
+    AlignVertically(sa);
+  end;
 
+  sz := sa.GetMaxSize;
+  writelN('sz=',sz.Height);
   Result := TFPMemoryImage.Create(sz.Width, sz.Height);
   for i:=0 to sa.Count-1 do begin
     sp := sa.Sprite[i];
@@ -215,11 +266,11 @@ begin
 end;
 
 function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of byte;
-  palTransIdx: Integer; const dstFn: string; autoAlign: Boolean): Boolean;
+  palTransIdx: Integer; const dstFn: string): Boolean;
 var
   fp : TFPCustomImage;
 begin
-  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf, palTransIdx, autoAlign);
+  fp := SpritesAlignToFPImage(sa, imgBuf, palBuf, palTransIdx);
   Result := Assigned(fp);
   if not Result then Exit;
   try
@@ -230,7 +281,46 @@ begin
 end;
 
 procedure AlignInSquareByMaxSpr(sa: TSpriteAlign; maxSprWidth, maxSprHeight: Integer);
+var
+  i    : integer;
+  maxw : integer;
+  col  : integer;
+  y    : integer;
+  x    : integer;
+  sp   : TSpriteAlignPos;
 begin
+  maxw := Round(sqrt(sa.Count));
+  y := 0;
+  x := 0;
+  col := 0;
+  for i := 0 to sa.count-1 do begin
+    sp := sa.Sprite[i];
+    sp.targetX := x;
+    sp.targetY := y;
+    inc(x, maxSprWidth);
+    inc(col);
+    if col > maxw then begin
+      inc(y, maxSprHeight);
+      x := 0;
+      col := 0;
+    end;
+  end;
+end;
+
+procedure AlignInEqColumns(sa: TSpriteAlign; colNum: integer);
+var
+  sz : TSize;
+  i  : integer;
+  sp : TSpriteAlignPos;
+begin
+  if not Assigned(sa) then Exit;
+  if colNum<=0 then colNum :=1;
+  sz := sa.GetMaxSpriteSize;
+  for i:=0 to sa.Count-1 do begin
+    sp := sa[i];
+    sp.targetX := i mod colNum * sz.cx;
+    sp.targetY := i div colNum * sz.cy;
+  end;
 end;
 
 end.
