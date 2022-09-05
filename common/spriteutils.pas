@@ -253,7 +253,6 @@ begin
   end;
 
   sz := sa.GetMaxSize;
-  writelN('sz=',sz.Height);
   Result := TFPMemoryImage.Create(sz.Width, sz.Height);
   for i:=0 to sa.Count-1 do begin
     sp := sa.Sprite[i];

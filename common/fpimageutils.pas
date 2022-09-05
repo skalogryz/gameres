@@ -104,7 +104,7 @@ var
 begin
   img := PalBytesToFpImage(buf, width, height, palbuf);
   Result := Assigned(img);
-  if Result then Exit;
+  if not Result then Exit;
 
   Result := FPImageToBmp(img, bmpfn);
   img.Free;
