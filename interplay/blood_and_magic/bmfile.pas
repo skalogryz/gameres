@@ -99,7 +99,6 @@ type
   end;
   TImageHeader = TFrameInfo;
 
-
 //  MAP.IDX
 // 0000000000: 6D 61 69 6E 00 00 00 00 │ 00 6F 00 6E 05 00 00 01  main     o n♣  ☺
 // 0000000010: 00 00 63 69 6E 65 73 00 │ 00 00 00 6F 00 F5 01 00    cines    o õ☺
@@ -214,8 +213,18 @@ type
     charCount : integer;
   end;
 
+type
+  TUnitLibEntryInfo = record
+    zero  : Integer;
+    descr : array [0..75] of char;
+  end;
+
 procedure ReadFontExtaInfo(const s: TStream; var mp: TFontExtraInfo);
 
+const
+  TileWidth  = 20;
+  TileHeight = 38;
+  MaxLogTile = 128;
 
 type
   TTileHeader = packed record
@@ -227,15 +236,77 @@ type
 
   TTileInfo = record
     name  : array [0..19] of char;
+    moveCost   : integer; // positive
+    flag2      : integer;
+    flag3      : integer;
+    defBonus   : integer; // defense bonus. can be negative
+    healthCost : integer; // the damage caused
+    flag6      : integer;
+    flag7      : integer;
+    iconId     : integer; // id of the icon file name
+  end;
+
+  TTile = packed record
+    id    : integer;
     flag1 : integer;
     flag2 : integer;
-    flag3 : integer;
-    flag4 : integer;
-    flag5 : integer;
-    flag6 : integer;
-    flag7 : integer;
-    iconId : integer; // id of the icon file name
+    flag4 : byte;
+    buf : array [0..TileWidth*TileHeight-1] of byte;
   end;
+  PTile = ^TTile;
+
+
+const
+  DefaultPalette : array [0..256*3-1] of byte = (
+   $00 ,$00 ,$00 ,$0F ,$0F ,$17 ,$1B ,$1B ,$27 ,$1F ,$1F ,$3B ,$2B ,$2B ,$4B,$37
+  ,$37 ,$5B ,$43 ,$43 ,$6B ,$53 ,$53 ,$7B ,$67 ,$67 ,$8B ,$77 ,$77 ,$9B ,$8B,$8B
+  ,$AB ,$9F ,$9F ,$BB ,$B7 ,$B7 ,$CB ,$CF ,$CF ,$DF ,$E7 ,$E7 ,$EF ,$FF ,$FF,$FF
+  ,$0F ,$07 ,$07 ,$1F ,$13 ,$13 ,$2F ,$1F ,$1F ,$3B ,$27 ,$2B ,$4B ,$37 ,$3B,$5B
+  ,$43 ,$47 ,$6B ,$53 ,$57 ,$7B ,$63 ,$6B ,$8B ,$73 ,$7B ,$9B ,$87 ,$8F ,$AB,$97
+  ,$9F ,$BB ,$AB ,$B3 ,$CB ,$C3 ,$C7 ,$DF ,$D3 ,$D7 ,$EF ,$E7 ,$EB ,$17 ,$17,$17
+  ,$23 ,$23 ,$23 ,$33 ,$33 ,$33 ,$43 ,$43 ,$43 ,$53 ,$53 ,$53 ,$63 ,$63 ,$63,$77
+  ,$77 ,$77 ,$87 ,$87 ,$87 ,$97 ,$97 ,$97 ,$A7 ,$A7 ,$A7 ,$B7 ,$B7 ,$B7 ,$CB,$CB
+  ,$CB ,$07 ,$0F ,$07 ,$13 ,$1F ,$13 ,$1B ,$2F ,$1B ,$27 ,$3F ,$23 ,$33 ,$4F,$2F
+  ,$3F ,$5F ,$3B ,$4F ,$6B ,$47 ,$5F ,$7B ,$53 ,$73 ,$8B ,$63 ,$83 ,$9B ,$73,$93
+  ,$AB ,$83 ,$A7 ,$BB ,$93 ,$BB ,$CB ,$A7 ,$CF ,$DB ,$BB ,$1F ,$3B ,$0B ,$27,$47
+  ,$13 ,$33 ,$5B ,$1B ,$3F ,$6F ,$27 ,$4F ,$87 ,$2F ,$5F ,$9B ,$3B ,$6F ,$AF,$4B
+  ,$7F ,$C3 ,$57 ,$93 ,$D7 ,$67 ,$A7 ,$EF ,$77 ,$B3 ,$FF ,$87 ,$0B ,$2B ,$2B,$0F
+  ,$3B ,$37 ,$1B ,$4B ,$47 ,$23 ,$5B ,$57 ,$2F ,$6B ,$63 ,$3B ,$7B ,$73 ,$4B,$8B
+  ,$7F ,$5B ,$9B ,$8F ,$6B ,$AB ,$9B ,$7F ,$BB ,$AB ,$8F ,$CB ,$BB ,$A7 ,$DB,$CB
+  ,$BF ,$EB ,$DB ,$D7 ,$FB ,$EF ,$0B ,$0B ,$1F ,$13 ,$13 ,$43 ,$1F ,$1F ,$5B,$27
+  ,$2B ,$77 ,$33 ,$37 ,$97 ,$37 ,$47 ,$A7 ,$4B ,$5B ,$B3 ,$57 ,$6F ,$BB ,$5F,$7F
+  ,$CB ,$73 ,$97 ,$D7 ,$8B ,$AF ,$E3 ,$A3 ,$CB ,$EF ,$BF ,$E3 ,$FF ,$2F ,$23,$53
+  ,$3F ,$2F ,$63 ,$57 ,$2B ,$83 ,$5F ,$3F ,$8F ,$77 ,$4F ,$A7 ,$8F ,$63 ,$CB,$9F
+  ,$73 ,$D3 ,$B3 ,$8B ,$DB ,$C3 ,$9F ,$E7 ,$D7 ,$B3 ,$EF ,$E7 ,$CB ,$F7 ,$2B,$0B
+  ,$1B ,$37 ,$0F ,$23 ,$47 ,$13 ,$2F ,$5B ,$1B ,$3F ,$6B ,$23 ,$4B ,$7F ,$2F,$5B
+  ,$93 ,$3F ,$6F ,$A7 ,$53 ,$87 ,$BF ,$6B ,$9F ,$D3 ,$83 ,$B3 ,$E7 ,$9B ,$CB,$FF
+  ,$BB ,$E7 ,$FF ,$CF ,$EF ,$33 ,$1B ,$13 ,$3F ,$1F ,$17 ,$4F ,$27 ,$1F ,$67,$33
+  ,$2B ,$83 ,$3F ,$37 ,$9F ,$4F ,$43 ,$BB ,$5B ,$53 ,$CB ,$63 ,$63 ,$D3 ,$73,$7B
+  ,$E3 ,$7F ,$83 ,$E3 ,$8F ,$93 ,$1F ,$00 ,$00 ,$2F ,$07 ,$07 ,$3F ,$07 ,$07,$4F
+  ,$0B ,$0B ,$63 ,$0F ,$0F ,$77 ,$1F ,$13 ,$8B ,$23 ,$1B ,$A3 ,$33 ,$1F ,$B7,$43
+  ,$27 ,$C7 ,$57 ,$2F ,$DF ,$6B ,$37 ,$F7 ,$83 ,$43 ,$FB ,$8F ,$57 ,$FF ,$9F,$6B
+  ,$FF ,$AF ,$83 ,$47 ,$17 ,$0B ,$5F ,$1F ,$0F ,$77 ,$27 ,$13 ,$87 ,$33 ,$17,$97
+  ,$47 ,$1B ,$A7 ,$5B ,$1F ,$BB ,$6F ,$23 ,$CB ,$87 ,$27 ,$DB ,$A3 ,$2B ,$EF,$BF
+  ,$33 ,$F3 ,$DF ,$5F ,$F7 ,$F7 ,$8F ,$F3 ,$FB ,$BF ,$33 ,$23 ,$17 ,$43 ,$33,$1F
+  ,$4F ,$47 ,$2B ,$63 ,$57 ,$37 ,$77 ,$67 ,$43 ,$8B ,$7B ,$4F ,$9F ,$8B ,$5B,$AF
+  ,$9B ,$67 ,$C3 ,$AF ,$73 ,$D7 ,$BF ,$7F ,$EB ,$D3 ,$8B ,$53 ,$2F ,$13 ,$67,$33
+  ,$1F ,$77 ,$3F ,$27 ,$87 ,$4F ,$2F ,$97 ,$5B ,$3B ,$A7 ,$6B ,$47 ,$B7 ,$7B,$53
+  ,$C7 ,$8B ,$5F ,$D7 ,$97 ,$73 ,$EB ,$AB ,$83 ,$F7 ,$BB ,$9B ,$FF ,$CF ,$A7,$FF
+  ,$DB ,$CF ,$FF ,$EF ,$E7 ,$AF ,$23 ,$23 ,$CB ,$27 ,$27 ,$DB ,$37 ,$37 ,$EB,$47
+  ,$47 ,$F7 ,$53 ,$53 ,$FB ,$63 ,$63 ,$FB ,$7B ,$7B ,$FB ,$97 ,$97 ,$FB ,$B3,$B3
+  ,$47 ,$0B ,$0B ,$6F ,$0B ,$0B ,$97 ,$0B ,$0B ,$BF ,$07 ,$07 ,$EB ,$00 ,$00,$FF
+  ,$63 ,$63 ,$FF ,$8B ,$83 ,$FF ,$B7 ,$AF ,$13 ,$13 ,$43 ,$1B ,$23 ,$83 ,$23,$37
+  ,$AF ,$3B ,$5B ,$C3 ,$3F ,$77 ,$EB ,$5B ,$93 ,$EB ,$83 ,$B7 ,$F3 ,$B3 ,$DB,$FF
+  ,$2B ,$17 ,$17 ,$37 ,$1F ,$1B ,$3F ,$27 ,$23 ,$4B ,$2F ,$2B ,$57 ,$37 ,$2F,$63
+  ,$43 ,$37 ,$6F ,$4B ,$3F ,$7B ,$57 ,$47 ,$87 ,$63 ,$4F ,$4F ,$17 ,$17 ,$5B,$1F
+  ,$1B ,$67 ,$2B ,$23 ,$77 ,$3B ,$2B ,$83 ,$4B ,$33 ,$9F ,$6B ,$43 ,$AB ,$7F,$4B
+  ,$BB ,$93 ,$57 ,$47 ,$3B ,$2B ,$5F ,$4F ,$3B ,$6B ,$5B ,$47 ,$83 ,$73 ,$5B,$8F
+  ,$7F ,$63 ,$9F ,$8F ,$6F ,$4B ,$4B ,$63 ,$57 ,$57 ,$73 ,$67 ,$67 ,$87 ,$73,$73
+  ,$9B ,$7F ,$7F ,$AF ,$8F ,$8F ,$BF ,$9B ,$9B ,$D3 ,$A7 ,$A7 ,$E7 ,$B7 ,$B7,$FB
+  ,$1B ,$2F ,$27 ,$23 ,$3F ,$2F ,$2B ,$4B ,$37 ,$37 ,$5B ,$3F ,$3F ,$6B ,$47,$47
+  ,$7B ,$4B ,$4F ,$8B ,$4F ,$A3 ,$33 ,$1F ,$BB ,$67 ,$2F ,$D7 ,$9F ,$43 ,$F3,$DF
+  ,$5F ,$00 ,$00 ,$FF ,$FF ,$00 ,$00 ,$00 ,$00 ,$00 ,$00 ,$FF ,$00 ,$FF ,$FF,$FF
+  );
 
 implementation
 
