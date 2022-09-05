@@ -24,6 +24,11 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
+    <RequiredPackages>
+      <Item>
+        <PackageName Value="gamerescommon"/>
+      </Item>
+    </RequiredPackages>
     <Units>
       <Unit>
         <Filename Value="tilereader.lpr"/>
