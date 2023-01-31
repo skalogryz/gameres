@@ -5,7 +5,8 @@ interface
 {$mode objfpc}{$H+}
 
 uses
-  Types, Math, Classes, SysUtils, FPimage, fpimageutils;
+  Types, Math, Classes, SysUtils, FPimage, fpimageutils
+  ,FPCanvas, FPImgCanv;
 
 type
 
@@ -66,6 +67,8 @@ function SpritesAlignToBmpFile(sa: TSpriteAlign; const imgBuf, palBuf: array of 
 procedure AlignVertically(sa: TSpriteAlign);
 procedure AlignInSquareByMaxSpr(sa: TSpriteAlign; maxSprWidth, maxSprHeight: Integer);
 procedure AlignInEqColumns(sa: TSpriteAlign; colNum: integer);
+
+function SpritesAsFPImages(sa: TSpriteAlign): TFPCustomImage;
 
 implementation
 
@@ -320,6 +323,24 @@ begin
     sp.targetX := i mod colNum * sz.cx;
     sp.targetY := i div colNum * sz.cy;
   end;
+end;
+
+
+function SpritesAsFPImages(sa: TSpriteAlign): TFPCustomImage;
+var
+  sz : TSize;
+  sp : TSpriteAlignPos;
+  i  : integer;
+  c  : TFPImageCanvas;
+begin
+  sz := sa.GetMaxSize;
+  Result := TFPMemoryImage.Create(sz.Width, sz.Height);
+  c := TFPImageCanvas.create(Result);
+  for i:=0 to sa.Count-1 do begin
+    sp := sa.Sprite[i];
+    c.Draw(sp.targetX,sp.targetY, TFPCustomImage(sp.Tag));
+  end;
+
 end;
 
 end.
