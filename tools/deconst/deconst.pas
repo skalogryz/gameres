@@ -99,7 +99,7 @@ begin
   end;
 end;
 
-procedure UnzlibStream(st: TStream; amaxsize: uint64; showOutput: Boolean);
+procedure UnzlibStream(st: TStream; amaxsize: uint64; showOutput: Boolean; dstSt: TSTream);
 var
   buf : array of byte;
   dst : array of byte;
@@ -118,20 +118,28 @@ begin
   sz:=zuncompress (@dst[0], dstl, buf, sz);
   writeln('uncomparess = ',sz, ' ',zlibErrorToStr(sz));
   writeln(' len = ',dstl);
-  if (sz = Z_OK) and showOutput then
-    writeln(' ',PCHar(@dst[0]));
+  if (sz = Z_OK) then begin
+    if showOutput then
+      writeln(' ',PCHar(@dst[0]));
+    if dst<>nil then
+      dstSt.Write(dst[0], dstl);
+  end;
+
 end;
 
 procedure Unzlib(const fn: string; ofs, maxSize: UInt64);
 var
   fs : TfileStream;
+  dst : TFileStream;
 begin
   fs:=TFileStream.create(fn, fmOpenRead or fmShareDenyNone);
+  dst := TFileStream.Create(fn+'.deconst',fmCreate);
   try
     fs.Position:=ofs;
-    UnzlibStream(fs, maxSize, gShowoutput);
+    UnzlibStream(fs, maxSize, gShowoutput, dst);
   finally
     fs.Free;
+    dst.free;
   end;
 end;
 
