@@ -8,19 +8,28 @@ uses Classes, SysUtils;
 
 type
   TResHeader = packed record
-    id       : array [0..3] of byte; // 3C E2 9C 01   
+    id       : array [0..3] of byte; // 3C E2 9C 01 - eng
+                                     // 3D E2 9C 01 - rus
     count    : integer; // total files count
     entryofs : integer; 
     namesz   : integer;
   end;
 
-  TEntryInfo = packed record
+  TEntryInfoC = packed record
     flag1   : integer;
     size    : integer;
     offset  : integer;
     flag2   : integer;
     namelen : word;
     nameofs : integer;
+  end;
+
+  TEntryInfoD = packed record
+    size    : integer;
+    nameofs : integer;
+    flag1   : integer;
+    namelen : word;
+    offset  : integer;
   end;
 
   // Figure (Model) file
@@ -56,7 +65,58 @@ type
 
 procedure ReadFigure(fig: TFigureClass; src: TStream);
 
+type
+  TSharedEntryInfo = packed record
+    size    : integer;
+    nameofs : integer;
+    namelen : integer;
+    offset  : integer;
+  end;
+  TSharedEntryArray = array of TSharedEntryInfo;
+  
+
+function ReadEntries(hdr: TResHeader; src: TStream): TSharedEntryArray;
+
 implementation
+
+procedure EntryCToShared(const src: TEntryInfoC; var dst: TSharedEntryInfo);
+begin
+  dst.size := src.size;  
+  dst.nameofs := src.nameofs;
+  dst.namelen := src.namelen;
+  dst.offset := src.offset;
+end;
+
+
+procedure EntryDToShared(const src: TEntryInfoD; var dst: TSharedEntryInfo);
+begin
+  dst.size := src.size;  
+  dst.nameofs := src.nameofs;
+  dst.namelen := src.namelen;
+  dst.offset := src.offset;
+end;
+
+function ReadEntries(hdr: TResHeader; src: TStream): TSharedEntryArray;
+var
+  i : integer;
+  c : TEntryInfoC;
+  d : TEntryInfoD;
+begin
+  Result:=nil;
+  src.Position := hdr.entryofs;
+  SetLength(Result, hdr.count);
+  if (hdr.id[0] = $3C) then begin
+    for i := 0 to hdr.count - 1 do begin
+      src.Read(c, sizeof(c));
+      EntryCToShared(c, result[i]);
+    end;
+  end else  begin
+    for i := 0 to hdr.count -1  do begin
+      src.Read(d, sizeof(d));
+      EntryDToShared(d, result[i]);
+    end;
+  end;
+end;
 
 procedure ReadFigure(fig: TFigureClass; src: TStream);
 begin

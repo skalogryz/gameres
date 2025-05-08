@@ -14,7 +14,7 @@ procedure UnpackFiles(const fn: string; doExtract: boolean);
 var
   fs    : TfileStream;
   hdr   : TResHeader;
-  ent   : array of TEntryInfo;
+  ent   : TSharedEntryArray;
   nmbuf : array of char;
   i     : integer;
   nm    : string;
@@ -30,7 +30,8 @@ begin
   fs.Position := hdr.entryofs;
   SetLength(ent, hdr.count);
   SetLength(nmbuf, hdr.namesz);
-  fs.read(ent[0], hdr.count*sizeof(TEntryInfo));
+  ent := ReadEntries(hdr, fs);
+  //fs.read(ent[0], hdr.count*sizeof(TEntryInfo));
   fs.read(nmbuf[0], length(nmbuf));
   for i:=0 to hdr.Count-1 do begin
     nm := StrFromArr(nmbuf, ent[i].nameofs, ent[i].namelen);
