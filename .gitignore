@@ -1,0 +1,5 @@
+## pascal generated files
+*.o
+*.ppu
+*.lps
+*.compiled
