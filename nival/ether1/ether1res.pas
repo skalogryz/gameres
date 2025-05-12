@@ -46,24 +46,23 @@ type
     unk4      : integer; // unknown 4 = 1 or 8 or 0x0D
   end;
 
-  TFigVertex = packed record
+  TFigCoord = packed record
     x,y,z  : single;
+  end
+  ;
+  TFigUV = packed record
+    u,v : single;
+  end;
+
+  // the indicies of coord, normal  and texture used for a vertex
+  TFigVertex = packed record
+    c, n, t: Word;
   end;
 
 const
   VtxEntrySize = 12 * 4;
   VtxExtraSize = 12 * 3 + 4;
   CntEntrySize = 16 * 4;
-
-
-type
-  TFigureClass = class
-    header : TFigHeader;
-
-
-  end;
-
-procedure ReadFigure(fig: TFigureClass; src: TStream);
 
 type
   TSharedEntryInfo = packed record
@@ -76,6 +75,9 @@ type
   
 
 function ReadEntries(hdr: TResHeader; src: TStream): TSharedEntryArray;
+function GetNameBufOfs(const hdr: TResHeader): Integer;
+function ReadNameBuf(const hdr: TResHeader; src: TStream): string;
+function GetName(const nameBuf: string; nameofs, namelen: integer): string;
 
 implementation
 
@@ -118,71 +120,32 @@ begin
   end;
 end;
 
-procedure ReadFigure(fig: TFigureClass; src: TStream);
+function GetNameBufOfs(const hdr: TResHeader): Integer;
+var
+  sz : integer;
 begin
-{
-fs.Read(hdr, sizeof(hdr));
-writeln(hdr.id);
-writeln('count1   = ', hdr.count1);
-writeln('         = ', hdr.count2);
-writeln('uvcount  = ', hdr.uvcount);
-writeln('fcount   = ', hdr.fcount);
-writeln('uvcount2 = ', hdr.uvcount2);
-writeln('unk1     = ', hdr.unk1);
-writeln('unk2     = ', hdr.unk2);
-writeln('unk2     = ', hdr.unk3);
-writeln('unk4     = ', hdr.unk4);
-
-writeln('---after header ', fs.Position,' ',IntToHex(fs.Position,8),' ---');
-initOfs := 0 * sizeof(single);
-writeln('initOfs = ',initOfs,' extra size: ', VtxExtraSize);
-fs.Position:=fs.Position+initOfs;
-
-//floatbuf := hdr.count1 * VtxEntrySize + VtxExtraSize + hdr.count1 * CntEntrySize;
-extra := hdr.count1 * VtxEntrySize; // + VtxExtraSize;
-SetLength(coords, hdr.count1 * 4);
-SetLength(ff, extra div 4);
-writeln('---after header ', fs.Position,' ',IntToHex(fs.Position,8),' ---');
-fs.Read(ff[0], extra);
-for i := 0 to length(ff)-1 do
-  writeln(ff[i]:0:6);
-
-writeln('# test ff ', ff[0]:0:6,' ', ff[1]:0:6,' ',ff[2]:0:6);
-fs.Position:=fs.Position+ VtxExtraSize-initOfs;
-
-//fs.Position := fs.Position +  ;
-writeln('---starting at: ', fs.Position,' ',IntToHex(fs.Position,8),' ---');
-for i := 0 to hdr.count1-1 do begin
-  fs.Read(check[0], CntEntrySize);
-  write(i,': ');
-  for j := 0 to length(check)-1 do
-     write(check[j]:0:6,' ');
-  writeln;
-  // Move(check[0], coords[i*4],  sizeof(TCoord)*3*4);
-  // writeln(check[12]:0:6 ,' ',check[13]:0:6,' ',check[14]:0:6,' ',check[15]:0:6)
+  sz := 0;
+  if (hdr.id[0] = $3C) then sz := SizeOf(TEntryInfoC)
+  else sz := SizeOF(TEntryInfoD);
+  Result := hdr.entryofs + hdr.count * sz;
 end;
 
-writeln('--uvs: (',hdr.uvcount,')');
-for i := 0 to hdr.uvcount-1 do begin
-  fs.Read(uv[0], sizeof(uv));
-  writeln(i,': ', uv[0]:0:6 ,' ',uv[1]:0:6);
+function ReadNameBuf(const hdr: TResHeader; src: TStream): string;
+var
+  p : Int64;
+begin
+  p := src.Position;
+  src.Position := GetNameBufOfs(hdr);
+  SetLength(Result, hdr.namesz);
+  src.Read(Result[1], hdr.namesz);
+  src.Position := p;
 end;
 
-
-
-writeln('# test ff ', ff[0]:0:6,' ', ff[1]:0:6,' ',ff[2]:0:6);
-
-SetLength(faces, hdr.fcount div 3);
-fs.Read(faces[0], length(faces)*sizeof(TVertexIndex));
-writeln('# test ff ', ff[0]:0:6,' ', ff[1]:0:6,' ',ff[2]:0:6);
-
-SetLength(vtx, hdr.uvcount2);
-fs.Read(vtx[0], length(vtx)*sizeof(TVertexDescr));
-
-writeln('# test ff ', ff[0]:0:6,' ', ff[1]:0:6,' ',ff[2]:0:6);
-SetLength(u1ind, hdr.unk1);
-fs.Read(u1ind[0], length(u1ind)*sizeof(TUVIndex));
-}
+function GetName(const nameBuf: string; nameofs, namelen: integer): string;
+begin
+   // pascal sctrings are 1-based
+  result := copy(namebuf, nameofs+1, namelen);
 end;
+
 
 end.                                   

@@ -1,6 +1,8 @@
 {$mode delphi}
 {$rangechecks on}
-uses SysUtils, Classes, ether1res;
+uses
+  SysUtils, Classes, ether1res, unfigutils,
+  export3d, objwaveexport;
 
 type
   TVertexIndex = array [0..2] of word;
@@ -231,6 +233,45 @@ begin
     DumpVtxArr(ff, fn);
   finally 
     fs.free;
+  end;
+end;
+
+procedure UnfigFilesClass(const fn: string);
+var
+  fs : TFileStream;
+  f  : TFigureData;
+  obj : TWaveObjFileExport;
+  m   : IMeshExport;
+begin
+  if (AnsiLowerCase(ExtractFileExt(fn)) = '.mod') then
+  begin
+    obj := TWaveObjFileExport.Create;
+    ExportModel(fn, obj);
+    writeln(obj.DumpString);
+    exit;
+  end;
+
+  fs := TFileStream.Create(fn, fmOpenRead or fmShareDenyNone);
+  f := TFigureData.Create;
+  try
+    ReadFigure(fs, f);
+    obj := TWaveObjFileExport.Create;
+
+    m := obj.StartMesh('mesh');
+    ExportFigure(f, m);
+    obj.FinishMesh(m);
+
+    m := obj.StartMesh('mesh2');
+    ExportFigure(f, m);
+    obj.FinishMesh(m);
+
+    writeln(obj.DumpString);
+
+
+    writeln('all ok');
+  finally
+    fs.Free;
+    f.Free;
   end;
 end;
 
@@ -477,5 +518,6 @@ begin
   if ParamCount>1 then begin
     ofs := StrToIntDef(ParamStr(2), ofs);
   end;
-  UnfigFiles(fn, ofs);
+  //UnfigFiles(fn, ofs);
+  UnfigFilesClass(fn);
 end.
