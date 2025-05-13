@@ -141,38 +141,8 @@ begin
 
         mdbg := m as IMeshExportDebug;
         if (mdbg <> nil) then begin
-          mdbg.AddDebugLine(
-            coord(f.init[0]-0.05, f.init[1], f.init[2]),
-            coord(f.init[0]+0.05, f.init[1], f.init[2]),
-            'pt1x'
-          );
-          mdbg.AddDebugLine(
-            coord(f.init[0], f.init[1]-0.05, f.init[2]),
-            coord(f.init[0], f.init[1]+0.05, f.init[2]),
-            'pt1y'
-          );
-          mdbg.AddDebugLine(
-            coord(f.init[0], f.init[1], f.init[2]-0.05),
-            coord(f.init[0], f.init[1], f.init[2]+0.05),
-            'pt1z'
-          );
-
-          mdbg.AddDebugLine(
-            coord(f.init[3]-0.05, f.init[4], f.init[5]),
-            coord(f.init[3]+0.05, f.init[4], f.init[5]),
-            'pt2x'
-          );
-          mdbg.AddDebugLine(
-            coord(f.init[3], f.init[4]-0.05, f.init[5]),
-            coord(f.init[3], f.init[4]+0.05, f.init[5]),
-            'pt2y'
-          );
-          mdbg.AddDebugLine(
-            coord(f.init[3], f.init[4], f.init[5]-0.05),
-            coord(f.init[3], f.init[4], f.init[5]+0.05),
-            'pt2z'
-          );
-
+          mdbg.AddDebugPoint(coord(f.init[0], f.init[1], f.init[2]), 'pt1');
+          mdbg.AddDebugPoint(coord(f.init[3], f.init[4], f.init[5]), 'pt2');
         end;
         // fv.x := f.init[0];
         // fv.y := f.init[1];

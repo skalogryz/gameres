@@ -109,6 +109,7 @@ var
   txt : TTextWriter;
   v    :TFloatVertex;
   db   : TDebugInfo;
+  dx,dy,dz: single;
   //dVn  : integer;
 begin
   if (meshUse > 0) then dec(meshUse);
@@ -146,16 +147,24 @@ begin
     if (db.comment<>'') then
       txt.WrLn('# %s',[db.comment]);
     if (db.isLine) then begin
-      txt.Wr('v ');
-      txt.Wr('%0.6n %0.6n %0.6n', [db.vtx.x+vofs.x, db.vtx.y+vofs.y, db.vtx.z+vofs.z]);
-      txt.WrLn;
-      txt.Wr('v ');
-      txt.Wr('%0.6n %0.6n %0.6n', [db.vtx2.x+vofs.x, db.vtx2.y+vofs.y, db.vtx2.z+vofs.z]);
-      txt.WrLn;
-      txt.Wr('l ');
-      txt.Wr('%d %d', [vN, vN+1]);
-      txt.WrLn;
+      txt.WrLn('v %0.6n %0.6n %0.6n', [db.vtx.x+vofs.x, db.vtx.y+vofs.y, db.vtx.z+vofs.z]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [db.vtx2.x+vofs.x, db.vtx2.y+vofs.y, db.vtx2.z+vofs.z]);
+      txt.WrLn('l %d %d', [vN, vN+1]);
       inc(vN, 2);
+    end else begin
+      dx := db.vtx.x+vofs.x;
+      dy := db.vtx.y+vofs.y;
+      dz := db.vtx.z+vofs.z;
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx-0.05, dy, dz]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx+0.05, dy, dz]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx, dy-0.05, dz]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx, dy+0.05, dz]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx, dy, dz-0.05]);
+      txt.WrLn('v %0.6n %0.6n %0.6n', [dx, dy, dz+0.05]);
+      txt.WrLn('l %d %d', [vN+0, vN+1]);
+      txt.WrLn('l %d %d', [vN+2, vN+3]);
+      txt.WrLn('l %d %d', [vN+4, vN+5]);
+      inc(vN, 6)
     end;
   end;
 
