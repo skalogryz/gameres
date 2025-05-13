@@ -122,6 +122,7 @@ var
   meshname : string;
   j   : integer;
   fv  : TFloatVertex;
+  mdbg : IMeshExportDebug;
 begin
   fs  := TFileStream.Create(modFn, fmOpenRead or fmShareDenyNone);
   try
@@ -137,9 +138,50 @@ begin
         meshname := GetName(namebuf, sh[i].nameofs, sh[i].namelen);
 
         m := dst.StartMesh(meshname);
+
+        mdbg := m as IMeshExportDebug;
+        if (mdbg <> nil) then begin
+          mdbg.AddDebugLine(
+            coord(f.init[0]-0.05, f.init[1], f.init[2]),
+            coord(f.init[0]+0.05, f.init[1], f.init[2]),
+            'pt1x'
+          );
+          mdbg.AddDebugLine(
+            coord(f.init[0], f.init[1]-0.05, f.init[2]),
+            coord(f.init[0], f.init[1]+0.05, f.init[2]),
+            'pt1y'
+          );
+          mdbg.AddDebugLine(
+            coord(f.init[0], f.init[1], f.init[2]-0.05),
+            coord(f.init[0], f.init[1], f.init[2]+0.05),
+            'pt1z'
+          );
+
+          mdbg.AddDebugLine(
+            coord(f.init[3]-0.05, f.init[4], f.init[5]),
+            coord(f.init[3]+0.05, f.init[4], f.init[5]),
+            'pt2x'
+          );
+          mdbg.AddDebugLine(
+            coord(f.init[3], f.init[4]-0.05, f.init[5]),
+            coord(f.init[3], f.init[4]+0.05, f.init[5]),
+            'pt2y'
+          );
+          mdbg.AddDebugLine(
+            coord(f.init[3], f.init[4], f.init[5]-0.05),
+            coord(f.init[3], f.init[4], f.init[5]+0.05),
+            'pt2z'
+          );
+
+        end;
         // fv.x := f.init[0];
         // fv.y := f.init[1];
         // fv.z := f.init[2];
+        // // if (meshname<>'wings') then begin
+        // //   fv.x:=fv.x+-1.034986;
+        // //   fv.y:=fv.y+-0.391054;
+        // //   fv.z:=fv.z+-0.053876;
+        // // end;
         // m.SetOffset(fv);
 
         writeln('mesh: ', meshname);

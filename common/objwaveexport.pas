@@ -4,13 +4,16 @@ unit objwaveexport;
 interface
 
 uses
-  Classes, SysUtils, export3d, textwriter;
+  Classes, SysUtils, export3d, textwriter, export3dutils;
 
 type 
 
   { TWaveObjFileExport }
 
-  TWaveObjFileExport = class (TInterfacedObject, IGeomFileExport, IMeshExport)
+  TWaveObjFileExport = class (TInterfacedObject,
+    IGeomFileExport,
+    IMeshExport,
+    IMeshExportDebug)
   protected
     function GetWriter: TTextWriter;
   public 
@@ -24,10 +27,19 @@ type
     vtx    : array of TFloatVertex;
     faces  : array of TTriangleInd;
 
+    dbg    : TDebugExportCollect;
+
+
+
     // if true , then "o meshName" would be added to object
     useObjects : Boolean;
+    // if true, debug output is generated
+    showDebug  : Boolean;
+    // each debug is a separate object
+    showDebugAsObj : Boolean;
 
     constructor Create;
+    destructor Destroy; override;
 
     function StartMesh(const meshname: string): IMeshExport;
     function IsPerMeshExport: Boolean;
@@ -36,6 +48,8 @@ type
     procedure SetOffset(coord: TFloatVertex);
     procedure AddCoords(const avtx: array of TFloatVertex);
     procedure AddTriangles(const afaces: array of TTriangleInd);
+    procedure AddDebugPoint(vtx: TFloatVertex; const name: string);
+    procedure AddDebugLine(vtx1, vtx2: TFloatVertex; const name: string);
 
     function DumpString: string;
   end;
@@ -61,6 +75,15 @@ begin
   vN      := 1;
   startV  := 1;
   useObjects := true;
+  showDebug := true;
+  showDebugAsObj := true;
+  dbg := TDebugExportCollect.Create;
+end;
+
+destructor TWaveObjFileExport.Destroy;
+begin
+  dbg.Free;
+  inherited Destroy;
 end;
 
 function TWaveObjFileExport.StartMesh(const meshname: string): IMeshExport;
@@ -77,6 +100,7 @@ begin
   vofs.z := 0;
   vtx := nil;
   faces := nil;
+  dbg.Clear();
 end;
 
 procedure TWaveObjFileExport.FinishMesh(m: IMeshExport);
@@ -84,6 +108,8 @@ var
   i : integer;
   txt : TTextWriter;
   v    :TFloatVertex;
+  db   : TDebugInfo;
+  //dVn  : integer;
 begin
   if (meshUse > 0) then dec(meshUse);
   if (meshUse > 0) then Exit;
@@ -108,6 +134,29 @@ begin
     txt.Wr('f ');
     txt.Wr('%d %d %d', [faces[i][0]+startV, faces[i][1]+startV, faces[i][2]+startV]);
     txt.WrLn();
+  end;
+
+  if not showDebug then Exit;
+
+  //dVn := vN;
+  for i := 0 to dbg.infos.Count-1 do begin
+    db := TDebugInfo(dbg.infos[i]);
+    if showDebugAsObj and (meshnm<>'') then
+      txt.WrLn('o %s dbg_%d %s', [meshnm, i, db.comment]);
+    if (db.comment<>'') then
+      txt.WrLn('# %s',[db.comment]);
+    if (db.isLine) then begin
+      txt.Wr('v ');
+      txt.Wr('%0.6n %0.6n %0.6n', [db.vtx.x+vofs.x, db.vtx.y+vofs.y, db.vtx.z+vofs.z]);
+      txt.WrLn;
+      txt.Wr('v ');
+      txt.Wr('%0.6n %0.6n %0.6n', [db.vtx2.x+vofs.x, db.vtx2.y+vofs.y, db.vtx2.z+vofs.z]);
+      txt.WrLn;
+      txt.Wr('l ');
+      txt.Wr('%d %d', [vN, vN+1]);
+      txt.WrLn;
+      inc(vN, 2);
+    end;
   end;
 
 end;
@@ -137,9 +186,20 @@ begin
   Move(afaces[0], faces[i], length(afaces)*sizeof(TTriangleInd));
 end;
 
+procedure TWaveObjFileExport.AddDebugPoint(vtx: TFloatVertex; const name: string
+  );
+begin
+  dbg.AddDebugPoint(vtx, name);
+end;
+
+procedure TWaveObjFileExport.AddDebugLine(vtx1, vtx2: TFloatVertex;
+  const name: string);
+begin
+  dbg.AddDebugLine(vtx1, vtx2, name);
+end;
+
 function TWaveObjFileExport.DumpString: string;
 var
-  i  : integer;
   pos: Int64;
   sz : integer;
 begin

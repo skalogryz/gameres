@@ -9,6 +9,7 @@ type
 
   // ['{00000000-0000-0000-C000-000000000046}'] 
   IGeomFileExport = interface(IUnknown)
+    ['{284FB87B-6840-4D7E-9CFE-2C4623177695}']
     function StartMesh(const meshname: string): IMeshExport;
     // if true, only 1 mesh should worked on at a time
     // mulitple meshes are not allowed and could cause errors
@@ -27,9 +28,17 @@ type
   TTriangleInd = array [0..2] of integer;
 
   IMeshExport = interface(IUnknown)
+    ['{4B14D0AF-E45C-44FD-B551-05455D8ECAB1}']
     procedure SetOffset(coord: TFloatVertex);
     procedure AddCoords(const vtx: array of TFloatVertex);
     procedure AddTriangles(const faces: array of TTriangleInd);
+  end;
+
+
+  IMeshExportDebug = interface (IUnknown)
+    ['{A95A2C8E-C9B2-4A49-AC25-849C8B9A3F81}']
+    procedure AddDebugPoint(vtx: TFloatVertex; const name: string);
+    procedure AddDebugLine(vtx1, vtx2: TFloatVertex; const name: string);
   end;
 
 function face(n0,n1,n2: integer): TTriangleInd; inline; overload;
