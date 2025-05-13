@@ -27,6 +27,7 @@ type
   TTriangleInd = array [0..2] of integer;
 
   IMeshExport = interface(IUnknown)
+    procedure SetOffset(coord: TFloatVertex);
     procedure AddCoords(const vtx: array of TFloatVertex);
     procedure AddTriangles(const faces: array of TTriangleInd);
   end;
