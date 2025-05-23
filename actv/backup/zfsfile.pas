@@ -15,16 +15,20 @@ type
     u3    : int32;
     count : int32;
     u5    : int32;
-    u6    : int32;
+    u6    : int32; // always C0
   end;
 
   TFileEntry = packed record
-    f0 : int32;
-    f1 : int32;
-    name :array [0..15] of char;
-    ofs : int32;
-    f6  : int32;
+    f0   : int32;
+    name : array [0..15] of char;
+    ofs  : int32;
+
+    // sequence number in the block of files. Starts with 0 up to 99
+    seqnum: int32;
+
+
     size : int32;
+    f6   : int32;
   end;
 
 implementation

@@ -17,27 +17,36 @@ var
   fe  : TFileEntry;
   p   : int64;
   d   : TfileStream;
+  nextfs : integer;
 begin
   fs :=TFileStream.Create(fn, fmOpenRead or fmShareDenyWrite);
   try
     fs.Read(hdr, sizeof(hdr));
     writeln('header: ', hdr.id);
     writeln('files:  ', hdr.count);
+    nextfs := 0;
     for i:=0 to hdr.Count-1 do begin
       fs.Read(fe, sizeof(fe));
+
+
+      if ((fe.seqnum mod 100) = 0) then nextfs := fe.f0;
+      if ((fe.seqnum mod 100) = 99) then fs.Position := nextfs;
+
       writeln(fe.name);
+
+
       writeln('  ofs: ',  fe.ofs);
       writeln('  sz:  ',  fe.size);
-      writeln('  f0:  ',  fe.f0);
-      writeln('  f4:  ',  fe.f4);
-      writeln('  f6:  ',  fe.f6);
+      writeln('  f0:  ',  fe.f0,' ', IntToHex(f0,8));
+      writeln('  seq: ',  fe.seqnum);
+      writeln('  f6:  ',  fe.f6,' ', IntToHex(f6,8));
       if doUnpack then begin
          p :=fs.Position;
 
          fs.Position := fe.ofs;
          d:=TFileStream.CreatE(fe.Name, fmCreate);
          try
-           d.CopyFrom(fs, fs.Size);
+           d.CopyFrom(fs, fe.Size);
          finally
            d.Free;
          end;
