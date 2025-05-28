@@ -39,7 +39,7 @@ var
   fn : string;
 begin
   if ParamCount=0 then begin
-     writeln('please provide input res file name');
+     writeln('please provide input .cln file name');
      exit;
   end;
   fn := Paramstr(1);
