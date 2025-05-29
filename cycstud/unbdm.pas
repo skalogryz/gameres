@@ -41,22 +41,26 @@ var
   s  : string;
 
   wobj : TWaveObjFileExport;
+  exp  : IGeomFileExport;
 begin
   fs :=TFileStream.Create(fn, fmOpenRead or fmShareDenyWrite);
   wobj := TWaveObjFileExport.Create;
+  exp := wobj;
   try
     f := ReadBdmFile(fs);
+
     //writeln('meshes: ', length(f.Meshes));
     for i := 0 to length(f.Meshes)-1 do begin
       if (f.Meshes[i] = nil) then continue;
       ExportMesh(f.Meshes[i], wobj, 'mesh'+IntToStr(i));
     end;
     writeln('## dumping');
-    s :=wobj.DumpString;
+    s := wobj.DumpString;
     writeln(s);
     writeln('## dumping done');
   finally
     wobj := nil;
+    exp := nil;
     fs.Free;
   end;
 end;

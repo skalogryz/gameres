@@ -5,6 +5,14 @@ interface
 uses Classes, SysUtils;
 
 // Model file
+//
+// There are two kinds of model files.
+// The "asterisked" files and "legacy" files
+//
+// Each model file contains of a "full" mesh
+// and additional parts. which seems to be used for destruction of the object.
+// Mote: that "destroyed" parts often have additional texture
+//  (for the fractured parts)
 
 const
   BdmHeader10Ast = '****************';
@@ -42,10 +50,17 @@ type
     face      : array of TBdmFace;
     uvs       : array of TBdmFaceUv; // per Face
     texidx    : array of Int16;
+    unk0      : array of single; // populated for all meshes
+    /// the fields below only populated for the first mesh?
     unk1      : array of single;
     unk2Count : int16; // multiply by 7
     unk3Count : int16;
     unk2      : array of single;
+
+    unk4Count : int32;
+    unk4      : array of single;
+    unk5count : int32;
+    unk5      : array of single;
 {
 00 00 00 00,00 00 00 00,00 00 00 00,00 00 00 00,  4
 00 00 00 00,00 00 00 00,27 0B A8 43,3C 0A 42 C3,  8
@@ -117,27 +132,36 @@ begin
 end;
 
 // vertexCnt and facesCnt must be read already
-procedure ReadBdmMesh10(st: TStream; dst: TBdmMesh);
+procedure ReadBdmMesh10(st: TStream; dst: TBdmMesh; isFirst: boolean);
 var
   i : integer;
 begin
-  writeln('pos = ',st.Position);
+  writeln('mesh starts with v,f, at pos : ', st.Position,' (',IntToHex(st.Position, 8),')');
+
+  dst.vertexCnt := integer(st.ReadDWord);
+  dst.facesCnt := integer(st.ReadDWord);
   writeln('vv = ',dst.vertexCnt);
   writeln('ff = ',dst.facesCnt);
   SetLength(dst.vtx, dst.vertexCnt);
   st.Read(dst.vtx[0], dst.vertexCnt * sizeof(TBdmVertex));
+
   SetLength(dst.face, dst.facesCnt);
   st.Read(dst.face[0], dst.facesCnt * sizeof(TBdmFace));
-
   SetLength(dst.uvs, dst.facesCnt);
   st.Read(dst.uvs[0], dst.facesCnt * sizeof(TBdmFaceUv));
-
   SetLength(dst.texidx, dst.facesCnt);
   st.Read(dst.texidx[0], dst.facesCnt * sizeof(Int16));
 
+  writeln('pos unk0: ', st.Position,' (',IntToHex(st.Position, 8),')');
+  SetLength(dst.unk0, 8);
+  st.Read(dst.unk0[0], length(dst.unk0)*sizeof(single));
+  for i:=0 to length(dst.unk0)-1 do begin
+    writeln('    ',i,': ',dst.unk0[i]:0:8);
+  end;
+  if not isFirst then Exit;
 
   writeln('pos unk1: ', st.Position,' (',IntToHex(st.Position, 8),')');
-  SetLength(dst.unk1, 12);
+  SetLength(dst.unk1, 4);
   st.Read(dst.unk1[0], length(dst.unk1)*sizeof(single));
   for i:=0 to length(dst.unk1)-1 do begin
     writeln('    ',i,': ',dst.unk1[i]:0:8);
@@ -158,6 +182,21 @@ begin
     if i mod 7 = 6 then writeln('    ---');
   end;
 
+  writeln('pos unk4: ', st.Position,' (',IntToHex(st.Position, 8),')');
+  dst.unk4Count := st.ReadDWord();
+  writeln('unk4count: ', dst.unk4Count);
+  SetLength(dst.unk4, dst.unk4Count);
+
+  if length(dst.unk4)>0 then
+    st.Read(dst.unk4[0], length(dst.unk4)*sizeof(single));
+
+  writeln('pos unk5: ', st.Position,' (',IntToHex(st.Position, 8),')');
+  dst.unk5Count := st.ReadDWord();
+  writeln('unk5Count: ', dst.unk5Count);
+  SetLength(dst.unk5, dst.unk5Count * 3);
+  if length(dst.unk5)>0 then
+    st.Read(dst.unk5[0], length(dst.unk5)*sizeof(single));
+
   writeln('done!');
 end;
 
@@ -172,36 +211,25 @@ begin
   fl.names := GetNames(st, header.texNames);
   writeln('st pos: ', st.Position);
 
-  fl.MeshCnt := 1;
+  fl.MeshCnt := 0;
   SetLength(fl.Meshes, 1);
 
-
-  v := integer(st.ReadDWord);
-  f := integer(st.ReadDWord);
-  mesh := TBdmMesh.Create(v,f);
-  fl.Meshes[0] := mesh;
-  ReadBdmMesh10(st, mesh);
-
-  // for the file ACIS.bdm, this position should be of 0x011B4
-  writeln('pos for reading next v,f: ', st.Position,' (',IntToHex(st.Position, 8),')');
-  v := integer(st.ReadDWord);
-  f := integer(st.ReadDWord);
-  writeln('at the end');
-  writeln('v = ', v);
-  writeln('f = ', f);
-  while (v > 0) and (f > 0) do begin
+  while st.Position < st.Size do begin
     if (fl.MeshCnt = length(fl.Meshes)) then begin
+      writeln('resizing mesh');
       SetLength(fl.Meshes, fl.MeshCnt * 2);
     end;
-    mesh := TBdmMesh.Create(v,f);
-    fl.Meshes[fl.Meshcnt] := mesh;
+    mesh := TBdmMesh.Create;
+    fl.Meshes[fl.MeshCnt] := mesh;
+    // for the file ACIS.bdm, this position should be of 0x011B4
+    writeln('##### MESH: ', fl.meshCnt);
+    ReadBdmMesh10(st, mesh, fl.meshCnt = 0);
     inc(fl.MeshCnt);
-    ReadBdmMesh10(st, mesh);
-    v := integer(st.ReadDWord);
-    f := integer(st.ReadDWord);
   end;
+  writeln('### END OF FILE');
+  SetLength(fl.Meshes, fl.MeshCnt);
+  writeln('meshes = ',length(fl.Meshes),' ',fl.MeshCnt);
   Result := fl;
-  writeln('--end');
 end;
 
 { TBdmMesh }
