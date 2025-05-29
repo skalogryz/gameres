@@ -30,6 +30,10 @@ begin
   mexp.AddTriangles(fc);
   writeln('finishing');
   fl.FinishMesh(mexp);
+
+  for i := 0 to length(m.submesh)-1 do
+    ExportMesh(m.submesh[i].mesh, fl, name+'_sub_'+IntToStR(i));
+
   writeln('finished?');
 end;
 
@@ -50,10 +54,14 @@ begin
     f := ReadBdmFile(fs);
 
     //writeln('meshes: ', length(f.Meshes));
-    for i := 0 to length(f.Meshes)-1 do begin
-      if (f.Meshes[i] = nil) then continue;
-      ExportMesh(f.Meshes[i], wobj, 'mesh'+IntToStr(i));
+    ExportMesh(f.MainMesh, wobj, 'main_'+fn);
+    for i:=0 to length(f.breakParts)-1 do begin
+      ExportMesh(f.breakParts[i], wobj, 'breakpart_'+intTostR(i));
     end;
+    if f.others <> nil then
+      for i := 0 to f.others.Count-1 do
+        ExportMesh(f.others[i], wobj, 'other_'+intTostR(i));
+
     writeln('## dumping');
     s := wobj.DumpString;
     writeln(s);

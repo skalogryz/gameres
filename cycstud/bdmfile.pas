@@ -40,6 +40,17 @@ type
     u2, v2 : single;
   end;
 
+  TBdmMesh = class;
+
+  { TBdmSubMesh }
+
+  TBdmSubMesh = class(TObject)
+    unk    : array [0..2] of single; // coordinates?
+    mesh   : TBdmMesh;
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
   { TBdmMesh }
 
   TBdmMesh = class
@@ -51,16 +62,18 @@ type
     uvs       : array of TBdmFaceUv; // per Face
     texidx    : array of Int16;
     unk0      : array of single; // populated for all meshes
-    /// the fields below only populated for the first mesh?
-    unk1      : array of single;
-    unk2Count : int16; // multiply by 7
-    unk3Count : int16;
-    unk2      : array of single;
 
-    unk4Count : int32;
-    unk4      : array of single;
-    unk5count : int32;
-    unk5      : array of single;
+    unkint0   : Int32; // used for parts of a gun.
+    sub0      : array of single;
+    unkint1   : Int32;
+    subMeshCnt : Int32; // the number of "gun" meshes
+                        // the gun submeshes are prefixed
+                        // with an array of 3 signles (coordinates x,y,z?)
+    submesh  : array of TBdmSubMesh;
+
+
+
+
 {
 00 00 00 00,00 00 00 00,00 00 00 00,00 00 00 00,  4
 00 00 00 00,00 00 00 00,27 0B A8 43,3C 0A 42 C3,  8
@@ -78,12 +91,37 @@ type
 
   end;
 
+  TBdmExtraInfo = record
+    count : integer;
+    vals  : array of single;
+  end;
+
   { TBdmFile }
 
   TBdmFile = class
     Names     : TStringList;
-    Meshes    : array of TBdmMesh;
-    MeshCnt   : integer;
+    MainMesh  : TBdmMesh;
+
+    /// the fields below only populated for the first mesh?
+    unk1       : array of single;
+    unk2Count  : int16; // multiply by 7
+    unk3Count  : int16;
+    unk2       : array of single;
+
+    unk4Count  : int32;
+    extraInfo  : array of TBdmExtraInfo;
+    extra1Cnt  : int32;
+    extra1     : array of single;
+    extra2Cnt  : int32;
+    extra2     : array of single;
+
+    // todo: this seems like a good place to use TBdmSubMesh, but we don't
+    breakCount : int32; // number of break parts? (each part is an additional mesh)
+    breakCoord : array of single; // break part centers? (x,y,z)
+    breakParts : array of TBdmMesh;
+
+    others     : TList; // of TBdmMesh
+    constructor Create;
     destructor Destroy; override;
   end;
 
@@ -132,9 +170,10 @@ begin
 end;
 
 // vertexCnt and facesCnt must be read already
-procedure ReadBdmMesh10(st: TStream; dst: TBdmMesh; isFirst: boolean);
+procedure ReadBdmMesh10(st: TStream; dst: TBdmMesh);
 var
   i : integer;
+  gunsub : TBdmSubMesh;
 begin
   writeln('mesh starts with v,f, at pos : ', st.Position,' (',IntToHex(st.Position, 8),')');
 
@@ -153,14 +192,78 @@ begin
   st.Read(dst.texidx[0], dst.facesCnt * sizeof(Int16));
 
   writeln('pos unk0: ', st.Position,' (',IntToHex(st.Position, 8),')');
-  SetLength(dst.unk0, 8);
+  SetLength(dst.unk0, 5);
   st.Read(dst.unk0[0], length(dst.unk0)*sizeof(single));
   for i:=0 to length(dst.unk0)-1 do begin
     writeln('    ',i,': ',dst.unk0[i]:0:8);
   end;
-  if not isFirst then Exit;
+  dst.unkint0 := st.ReadDWord;
+  writeln(' int0 : ',dst.unkint0);
+  if (dst.unkint0 > 0) then begin
+    Setlength(dst.sub0, dst.unkint0 * 3);
+    st.Read(dst.sub0[0], length(dst.sub0)*sizeof(single));
+  end;
 
-  writeln('pos unk1: ', st.Position,' (',IntToHex(st.Position, 8),')');
+
+  dst.unkint1 := st.ReadDWord;
+  writeln(' int1 : ',dst.unkint1);
+  dst.subMeshCnt := st.ReadDWord;
+  writeln(' submesh : ',dst.subMeshCnt);
+
+  if dst.subMeshCnt > 0 then begin
+    // recursive reading of "submeshes"
+    SetLength(dst.submesh,dst.subMeshCnt);
+
+    for i:=0 to length(dst.submesh)-1 do begin
+      gunsub := TBdmSubMesh.Create;
+      dst.submesh[i] := gunsub;
+      gunsub.mesh := TBdmMesh.Create;
+      st.Read(gunsub.unk[0], length(gunsub.unk)*sizeof(single));
+      ReadBdmMesh10(st, gunsub.mesh);
+    end;
+    writeln('welocme back to the main mesh:');
+    writeln('post gun pos: ', st.Position,' (',IntToHex(st.Position, 8),')');
+  end;
+
+end;
+
+function ReadBdmFile10(st: TStream; const header: TBdmHeader10): TBdmFile;
+var
+  dst   : TBdmFile;
+  i, j  : integer;
+
+  p     : Int64;
+  m : TBdmMesh;
+begin
+  dst := TBdmFile.Create;
+  dst.names := GetNames(st, header.texNames);
+  writeln('st pos: ', st.Position);
+  ReadBdmMesh10(st, dst.MainMesh);
+
+  // for the building there's an additional information
+  // for battle units, it's followed immediately by the mesh.
+  // It's unknown if the information is stored somewhere in BDM file
+  // to distinguish one from the other, but we can try to guess
+  while (true) and (st.Position < st.Size) do begin
+    p := st.Position;
+    writeln('doing euthrestic at pos: ', st.Position,' (',IntToHex(st.Position,8),')');
+    i := st.ReadDWord;
+    j := st.readDWORD;
+    writeln('value = ',i,' ',J);
+    st.Position := p;
+    if ((i> 0)  and (i < 1024) and (j> 0)  and (j < 4096)) then begin
+      if (dst.others = nil) then
+        dst.others := TList.create;
+      m := TBdmMesh.Create;
+      ReadBdmMesh10(st, m);
+      dst.others.Add(m);
+    end else
+      break;
+  end;
+
+
+
+  writeln('--pos unk1: ', st.Position,' (',IntToHex(st.Position, 8),')');
   SetLength(dst.unk1, 4);
   st.Read(dst.unk1[0], length(dst.unk1)*sizeof(single));
   for i:=0 to length(dst.unk1)-1 do begin
@@ -185,51 +288,66 @@ begin
   writeln('pos unk4: ', st.Position,' (',IntToHex(st.Position, 8),')');
   dst.unk4Count := st.ReadDWord();
   writeln('unk4count: ', dst.unk4Count);
-  SetLength(dst.unk4, dst.unk4Count);
+  SetLength(dst.extraInfo, dst.unk4Count);
+  if (dst.unk4Count>0) then begin
 
-  if length(dst.unk4)>0 then
-    st.Read(dst.unk4[0], length(dst.unk4)*sizeof(single));
+    for i := 0 to dst.unk4Count-1 do begin
+      dst.extraInfo[i].count := st.ReadDWord;
+      writeln('cnt  = ', dst.extraInfo[i].count);
+      if (dst.extraInfo[i].count = 0) then begin
+        SetLength(dst.ExtraInfo[i].vals, 9);
+        st.Read(dst.ExtraInfo[i].vals[0], length(dst.ExtraInfo[i].vals)*sizeof(single));
+      end else if (dst.extraInfo[i].count = 3) then begin
+        SetLength(dst.ExtraInfo[i].vals, 21);
+        st.Read(dst.ExtraInfo[i].vals[0], length(dst.ExtraInfo[i].vals)*sizeof(single));
+      end else if (dst.extraInfo[i].count = 4) then begin
+        SetLength(dst.ExtraInfo[i].vals, 27);
+        st.Read(dst.ExtraInfo[i].vals[0], length(dst.ExtraInfo[i].vals)*sizeof(single));
+      end else begin
+        writeln('UNKNOWN VALUE IN EXTRA INFO! ',dst.extraInfo[i].count,' we only know 4 and 3');
+        halt;
+      end;
+    end;
+    dst.extra1Cnt  := st.ReadDWord;
+    SetLength(dst.extra1, dst.extra1Cnt * 3);
+    if dst.extra1Cnt > 0 then
+      st.Read(dst.extra1[0], length(dst.extra1)*sizeof(Single));
 
-  writeln('pos unk5: ', st.Position,' (',IntToHex(st.Position, 8),')');
-  dst.unk5Count := st.ReadDWord();
-  writeln('unk5Count: ', dst.unk5Count);
-  SetLength(dst.unk5, dst.unk5Count * 3);
-  if length(dst.unk5)>0 then
-    st.Read(dst.unk5[0], length(dst.unk5)*sizeof(single));
+    dst.extra2Cnt  := st.ReadDWord;
+    SetLength(dst.extra2, dst.extra2Cnt * 3);
+    if dst.extra2Cnt > 0 then
+      st.Read(dst.extra2[0], length(dst.extra2)*sizeof(Single));
+  end;
 
-  writeln('done!');
+  writeln('breakCount pos: ', st.Position,' (',IntToHex(st.Position, 8),')');
+  dst.breakCount := st.ReadDWord();
+  writeln('breakCount: ', dst.breakCount);
+  if dst.breakCount>0 then begin
+    SetLength(dst.breakCoord, dst.breakCount * 3);
+    st.Read(dst.breakCoord[0], length(dst.breakCoord)*sizeof(single));
+    SetLength(dst.breakParts, dst.breakCount);
+    for i:=0 to dst.breakCount-1 do begin
+      dst.breakparts[i]:=TBdmMesh.Create;
+      writeln('### BREAK PART: ',i);
+      ReadBdmMesh10(st, dst.breakparts[i]);
+    end;
+  end;
+
+  writeln('### END OF FILE');
+  Result := dst;
 end;
 
-function ReadBdmFile10(st: TStream; const header: TBdmHeader10): TBdmFile;
-var
-  mesh  : TBdmMesh;
-  fl    : TBdmFile;
-  v,f   : integer;
+{ TBdmSubMesh }
 
+constructor TBdmSubMesh.Create;
 begin
-  fl := TBdmFile.Create;
-  fl.names := GetNames(st, header.texNames);
-  writeln('st pos: ', st.Position);
+  mesh:=TBdmMesh.Create;
+end;
 
-  fl.MeshCnt := 0;
-  SetLength(fl.Meshes, 1);
-
-  while st.Position < st.Size do begin
-    if (fl.MeshCnt = length(fl.Meshes)) then begin
-      writeln('resizing mesh');
-      SetLength(fl.Meshes, fl.MeshCnt * 2);
-    end;
-    mesh := TBdmMesh.Create;
-    fl.Meshes[fl.MeshCnt] := mesh;
-    // for the file ACIS.bdm, this position should be of 0x011B4
-    writeln('##### MESH: ', fl.meshCnt);
-    ReadBdmMesh10(st, mesh, fl.meshCnt = 0);
-    inc(fl.MeshCnt);
-  end;
-  writeln('### END OF FILE');
-  SetLength(fl.Meshes, fl.MeshCnt);
-  writeln('meshes = ',length(fl.Meshes),' ',fl.MeshCnt);
-  Result := fl;
+destructor TBdmSubMesh.Destroy;
+begin
+  mesh.Free;
+  inherited Destroy;
 end;
 
 { TBdmMesh }
@@ -247,9 +365,25 @@ end;
 
 { TBdmFile }
 
-destructor TBdmFile.Destroy;
+constructor TBdmFile.Create;
 begin
+  MainMesh := TBdmMesh.Create;
+end;
+
+destructor TBdmFile.Destroy;
+var
+  i : integer;
+begin
+  MainMesh.Free;
+  for i := 0 to length(breakParts)-1 do
+    breakParts[i].Free;
   Names.Free;
+
+  if others <> nil then begin
+    for i := 0 to others.Count-1 do
+      TObject(others[i]).free;
+    others.Free;
+  end;
   inherited Destroy;
 end;
 
