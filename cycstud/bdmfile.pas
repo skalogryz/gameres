@@ -66,6 +66,8 @@ type
     unkint0   : Int32; // used for parts of a gun.
     sub0      : array of single;
     unkint1   : Int32;
+    sub1      : array of single; // unkint1 * 4
+
     subMeshCnt : Int32; // the number of "gun" meshes
                         // the gun submeshes are prefixed
                         // with an array of 3 signles (coordinates x,y,z?)
@@ -169,6 +171,16 @@ begin
   end;
 end;
 
+procedure DumpArray(const f: array of single; const name : string; const pfx: string = '    ');
+var
+  i : integer;
+begin
+  writeln(name);
+  for i := 0 to length(f)-1 do begin
+    writeln(pfx,i,': ',f[i]:0:8);
+  end;
+end;
+
 // vertexCnt and facesCnt must be read already
 procedure ReadBdmMesh10(st: TStream; dst: TBdmMesh);
 var
@@ -202,11 +214,18 @@ begin
   if (dst.unkint0 > 0) then begin
     Setlength(dst.sub0, dst.unkint0 * 3);
     st.Read(dst.sub0[0], length(dst.sub0)*sizeof(single));
+    DumpArray(dst.sub1, 'sub0');
   end;
 
 
   dst.unkint1 := st.ReadDWord;
   writeln(' int1 : ',dst.unkint1);
+  if (dst.unkint1 > 0) then begin
+    SetLength(dst.sub1, dst.unkint1 *  4);
+    st.Read(dst.sub1[0], length(dst.sub1)*sizeof(single));
+    DumpArray(dst.sub1, 'sub1');
+  end;
+
   dst.subMeshCnt := st.ReadDWord;
   writeln(' submesh : ',dst.subMeshCnt);
 
@@ -301,7 +320,11 @@ begin
         SetLength(dst.ExtraInfo[i].vals, 21);
         st.Read(dst.ExtraInfo[i].vals[0], length(dst.ExtraInfo[i].vals)*sizeof(single));
       end else if (dst.extraInfo[i].count = 4) then begin
-        SetLength(dst.ExtraInfo[i].vals, 27);
+        if (dst.others <> nil) then
+          // assuming "ppp1t.bdm"
+          SetLength(dst.ExtraInfo[i].vals, 12)
+        else
+          SetLength(dst.ExtraInfo[i].vals, 27);
         st.Read(dst.ExtraInfo[i].vals[0], length(dst.ExtraInfo[i].vals)*sizeof(single));
       end else begin
         writeln('UNKNOWN VALUE IN EXTRA INFO! ',dst.extraInfo[i].count,' we only know 4 and 3');
