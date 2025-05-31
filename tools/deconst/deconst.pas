@@ -14,6 +14,7 @@ var
   gFileName : string = '';
   gSize     : Uint64 = 0;
   gShowoutput : Boolean = false;
+  gWriteAnyway : Boolean = false;
 
 procedure ErrorOffset(const ofsStr: string);
 begin
@@ -56,8 +57,11 @@ begin
         Val(SafeParamStr(i), gSize, err);
         writeln('gsize = ',gsize);
         inc(i);
-      end else if ( s= '-stdout') then
+      end else if ( s= '-stdout') then begin
         gShowoutput:=true;
+      end else if (s='-force') then begin
+        gWriteAnyway:= true;
+      end;
     end else begin
       if gCommand ='' then
         gCommand:=s
@@ -77,9 +81,14 @@ end;
 
 procedure PrintHelp;
 begin
-  writeln('deconst %command% %offset% %filename%');
+  writeln('deconst %command% [%options%] %offset% %filename%');
+  writeln('  %offset% can be specified as decimal 0xhex or $hex');
   writeln('commands:');
-  writeln(' uz  - attempts to decomparess zlib streat at offset');
+  writeln('  uz  - attempts to decomparess zlib streat at offset');
+  writeln('options');
+  writeln(' -stdout - write the unpacked data to stdout');
+  writeln(' -force  - write the unpacked data even if an error occured');
+  writeln(' -sz (-size) - the size of the data to be read from the offset for unpack');
 end;
 
 function zlibErrorToStr(err: integer): string;
@@ -99,31 +108,48 @@ begin
   end;
 end;
 
+
+
 procedure UnzlibStream(st: TStream; amaxsize: uint64; showOutput: Boolean; dstSt: TSTream);
 var
   buf : array of byte;
   dst : array of byte;
   dstl : LongWord;
+  p   : Int64;
   sz  : integer;
+  res : integer;
 begin
   SetLength(Buf, 1024*1024);
   SetLength(dst, 1024*1024*4);
   writeln('reading!');
   sz:=length(Buf);
   if (amaxsize>0) and (sz>amaxsize) then sz:=amaxsize;
+  p := st.Position;
   sz:=st.Read(buf[0], sz);
-  writeln('data read: ', sz,' first byte is: ', IntToHex(buf[0],2));
+  writeln('data read: ', sz,' first byte is: ', IntToHex(buf[0],2),'h');
 
   dstl:=length(dst);
-  sz:=zuncompress (@dst[0], dstl, buf, sz);
-  writeln('uncomparess = ',sz, ' ',zlibErrorToStr(sz));
+  res:=zuncompress (@dst[0], dstl, buf, sz);
+  writeln('uncomparess = ',res, ' ',zlibErrorToStr(res));
+
+  if (res <> Z_OK)
+     and (buf[0] = $78)
+     and (sz > 1) and (isGzHeader(buf[0], buf[1])) then begin
+    writeln('the start bit seems to be Zlib Magic header ',IntToHex(buf[0],2),IntToHex(buf[1],2),'h ',ZlibMagicComment(buf[1]));
+    writeln('trying to uncompress by skipping it (new offset is: ',IntToHex(p+2,8),'h):');
+    sz:=zuncompress (@dst[0], dstl, PByteArray(@buf[2])^, sz-2);
+  end;
+
   writeln(' len = ',dstl);
-  if (sz = Z_OK) then begin
+  if (res = Z_OK) or (gWriteAnyway) then begin
     if showOutput then
       writeln(' ',PCHar(@dst[0]));
     if dst<>nil then
       dstSt.Write(dst[0], dstl);
   end;
+
+
+
 
 end;
 

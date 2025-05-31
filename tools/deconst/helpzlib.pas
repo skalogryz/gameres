@@ -9,7 +9,39 @@ function zuncompress (dest : Pbyte;
                      const source : array of byte;
                      sourceLen : cardinal) : integer;
 
+function isGZHeader(b1, b2: byte): Boolean;
+function ZlibMagicComment(b2: Byte): string;
+const
+  Zlib_NoCompr = $01;
+  Zlib_FastCompr = $5e;
+  Zlib_DefCompr  = $9c;
+  Zlib_BestComp  = $Da;
+
 implementation
+
+function ZlibMagicComment(b2: Byte): string;
+begin
+  case b2 of
+    Zlib_NoCompr: Result := 'No Compression';
+    Zlib_FastCompr: Result := 'First Compression';
+    Zlib_DefCompr: Result := 'Default Compression';
+    Zlib_BestComp: Result := 'Best Compression';
+  else
+    result := 'Unknown '+IntToHex(b2, 2);
+  end;
+end;
+
+
+function isGZHeader(b1, b2: byte): Boolean;
+begin
+  Result := (b1 = $78)
+    and (
+      (b2 = Zlib_NoCompr)
+   or (b2 = Zlib_FastCompr)
+   or (b2 = Zlib_DefCompr)
+   or (b2 = Zlib_BestComp)
+   )
+end;
 
 function zuncompress (dest : Pbyte;
                      var destLen : cardinal;
